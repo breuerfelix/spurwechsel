@@ -1,0 +1,42 @@
+{
+  "originHash" : "42f81d75208a26858b8b6d17870a2144e18eb9ace92a8f41fd10bd66f2fe203e",
+  "pins" : [
+    {
+      "identity" : "libgit2",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ibrahimcetin/libgit2.git",
+      "state" : {
+        "revision" : "52287b0914f300f916b58fec80e13d8dd8f6824f",
+        "version" : "1.9.2"
+      }
+    },
+    {
+      "identity" : "msdisplaylink",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/Lakr233/MSDisplayLink.git",
+      "state" : {
+        "revision" : "1ba3e769b734e456317fa7e45321fa7f53eefb67",
+        "version" : "2.1.0"
+      }
+    },
+    {
+      "identity" : "swiftgitx",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/ibrahimcetin/SwiftGitX.git",
+      "state" : {
+        "revision" : "fcfb71e3dcbbaa70d120b98b7477ce173074aec3",
+        "version" : "0.4.0"
+      }
+    },
+    {
+      "identity" : "yams",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/jpsim/Yams.git",
+      "state" : {
+        "revision" : "deaf82e867fa2cbd3cd865978b079bfcf384ac28",
+        "version" : "6.2.1"
+      }
+    }
+  ],
+  "version" : 3
+}

@@ -1,0 +1,163 @@
+name: macOS Build
+
+on:
+  pull_request:
+  push:
+    tags:
+      - "*"
+
+concurrency:
+  group: macos-build-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  pr-build:
+    if: github.event_name == 'pull_request'
+    runs-on: macos-26
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Build unsigned app
+        run: ./scripts/build-unsigned-macos.sh build
+
+  tag-release:
+    if: github.event_name == 'push' && startsWith(github.ref, 'refs/tags/')
+    runs-on: macos-26
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Validate tag format
+        id: tag
+        run: |
+          tag="${GITHUB_REF_NAME}"
+          if [[ ! "$tag" =~ ^v?[0-9]+\.[0-9]+\.[0-9]+([.-].+)?$ ]]; then
+            echo "valid=false" >> "$GITHUB_OUTPUT"
+            echo "Tag $tag does not match release version pattern. Skip release asset upload."
+            exit 0
+          fi
+
+          version="${tag#v}"
+          echo "valid=true" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Build unsigned archive
+        if: steps.tag.outputs.valid == 'true'
+        env:
+          ARCHIVE_PATH: ${{ github.workspace }}/.build/archive/spurwechsel.xcarchive
+        run: ./scripts/build-unsigned-macos.sh archive
+
+      - name: Package app and checksum
+        if: steps.tag.outputs.valid == 'true'
+        id: package
+        env:
+          VERSION: ${{ steps.tag.outputs.version }}
+          ARCHIVE_PATH: ${{ github.workspace }}/.build/archive/spurwechsel.xcarchive
+        run: |
+          APP_SOURCE_PATH="$ARCHIVE_PATH/Products/Applications/spurwechsel.app"
+          ZIP_NAME="spurwechsel-${VERSION}-macos-arm64.zip"
+          SHA_NAME="spurwechsel-${VERSION}-macos-arm64.sha256"
+          ZIP_PATH="$RUNNER_TEMP/$ZIP_NAME"
+          SHA_PATH="$RUNNER_TEMP/$SHA_NAME"
+          PACKAGE_ROOT="$(mktemp -d "$RUNNER_TEMP/spurwechsel-package.XXXXXX")"
+          APP_PATH="$PACKAGE_ROOT/Spurwechsel.app"
+
+          if [[ ! -d "$APP_SOURCE_PATH" ]]; then
+            echo "Expected app not found at $APP_SOURCE_PATH" >&2
+            exit 1
+          fi
+
+          ditto "$APP_SOURCE_PATH" "$APP_PATH"
+          ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
+          SHA256="$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')"
+          printf '%s  %s\n' "$SHA256" "$ZIP_NAME" > "$SHA_PATH"
+
+          echo "zip_path=$ZIP_PATH" >> "$GITHUB_OUTPUT"
+          echo "sha_path=$SHA_PATH" >> "$GITHUB_OUTPUT"
+          echo "sha256=$SHA256" >> "$GITHUB_OUTPUT"
+
+      - name: Ensure release exists
+        if: steps.tag.outputs.valid == 'true'
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            exit 0
+          fi
+          gh release create "$TAG" --title "$TAG" --generate-notes
+
+      - name: Upload release artifacts
+        if: steps.tag.outputs.valid == 'true'
+        env:
+          TAG: ${{ github.ref_name }}
+          ZIP_PATH: ${{ steps.package.outputs.zip_path }}
+          SHA_PATH: ${{ steps.package.outputs.sha_path }}
+        run: gh release upload "$TAG" "$ZIP_PATH" "$SHA_PATH" --clobber
+
+      - name: Clone tap repo
+        if: steps.tag.outputs.valid == 'true'
+        id: tap
+        env:
+          TAP_REPO_TOKEN: ${{ secrets.TAP_REPO_TOKEN }}
+        run: |
+          if [[ -z "$TAP_REPO_TOKEN" ]]; then
+            echo "TAP_REPO_TOKEN secret missing. Cannot update breuerfelix/tap." >&2
+            exit 1
+          fi
+
+          TAP_DIR="$(mktemp -d "$RUNNER_TEMP/tap.XXXXXX")"
+          git clone "https://x-access-token:${TAP_REPO_TOKEN}@github.com/breuerfelix/tap.git" "$TAP_DIR"
+          echo "dir=$TAP_DIR" >> "$GITHUB_OUTPUT"
+
+      - name: Update tap cask
+        if: steps.tag.outputs.valid == 'true'
+        id: tap_cask
+        env:
+          TAP_DIR: ${{ steps.tap.outputs.dir }}
+          VERSION: ${{ steps.tag.outputs.version }}
+          SHA256: ${{ steps.package.outputs.sha256 }}
+        run: |
+          cd "$TAP_DIR"
+
+          perl -0pi -e 's/version ".*?"/version "'"$VERSION"'"/' Casks/spurwechsel.rb
+          perl -0pi -e 's/sha256 ".*?"/sha256 "'"$SHA256"'"/' Casks/spurwechsel.rb
+
+          if git diff --quiet -- Casks/spurwechsel.rb; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "changed=true" >> "$GITHUB_OUTPUT"
+
+      - name: Validate tap cask
+        if: steps.tag.outputs.valid == 'true' && steps.tap_cask.outputs.changed == 'true'
+        env:
+          TAP_DIR: ${{ steps.tap.outputs.dir }}
+        run: |
+          cd "$TAP_DIR"
+          brew style Casks/spurwechsel.rb
+
+      - name: Commit and push tap update
+        if: steps.tag.outputs.valid == 'true' && steps.tap_cask.outputs.changed == 'true'
+        env:
+          TAP_DIR: ${{ steps.tap.outputs.dir }}
+          VERSION: ${{ steps.tag.outputs.version }}
+        run: |
+          cd "$TAP_DIR"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add Casks/spurwechsel.rb
+          git commit -m "Update spurwechsel cask to ${VERSION}"
+          git push origin HEAD:main

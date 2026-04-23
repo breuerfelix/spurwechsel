@@ -1,0 +1,566 @@
+import XCTest
+@testable import spurwechsel
+
+final class ProjectConfigStoreTests: XCTestCase {
+
+    private var temporaryDirectoryURL: URL!
+
+    override func setUpWithError() throws {
+        temporaryDirectoryURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("spurwechsel-tests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectoryURL, withIntermediateDirectories: true)
+    }
+
+    override func tearDownWithError() throws {
+        if let temporaryDirectoryURL {
+            try? FileManager.default.removeItem(at: temporaryDirectoryURL)
+        }
+    }
+
+    func testConfigRoundTripPersistsVersionAndProjects() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let initialConfig = SpurwechselConfig(
+            version: SpurwechselConfig.currentVersion,
+            projects: [
+                ProjectRecord(path: temporaryDirectoryURL.appendingPathComponent("alpha").path, name: "Alpha"),
+                ProjectRecord(path: temporaryDirectoryURL.appendingPathComponent("beta").path, name: "Beta")
+            ]
+        )
+
+        try configStore.save(UserConfigFile.explicit(from: initialConfig))
+        let loadedConfig = try configStore.load()
+
+        XCTAssertEqual(loadedConfig.version, SpurwechselConfig.currentVersion)
+        XCTAssertEqual(loadedConfig.codeServer.resolvedPort, CodeServerConfig.defaultPort)
+        XCTAssertEqual(loadedConfig.projects, initialConfig.projects)
+        XCTAssertEqual(loadedConfig.agents, initialConfig.agents)
+        XCTAssertEqual(loadedConfig.shortcuts, initialConfig.shortcuts)
+        XCTAssertEqual(loadedConfig.resolvedAgents.map(\.displayName), ["claude", "opencode", "codex"])
+        XCTAssertEqual(loadedConfig.resolvedDefaultAgent.displayName, "claude")
+        XCTAssertEqual(loadedConfig.resolvedShortcuts.count, 1)
+        XCTAssertEqual(
+            loadedConfig.resolvedShortcuts.first?.action,
+            .toggleCommandBar
+        )
+        XCTAssertEqual(loadedConfig.theme, initialConfig.theme)
+    }
+
+    func testLoadResultWithoutThemeSectionUsesBuiltInDefaults() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        projects: []
+        agents: []
+        shortcuts: []
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadResult = configStore.loadResult()
+
+        XCTAssertEqual(loadResult.config.theme, SpurwechselConfig.defaultTheme)
+    }
+
+    func testLoadResultWithPartialThemeOverrideMergesWithDefaults() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        theme:
+          light:
+            accent: "#1234AB"
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadResult = configStore.loadResult()
+
+        XCTAssertEqual(loadResult.config.theme.light[.accent].hex, "#1234AB")
+        XCTAssertEqual(
+            loadResult.config.theme.light[.foreground].hex,
+            SpurwechselConfig.defaultTheme.light[.foreground].hex
+        )
+        XCTAssertEqual(
+            loadResult.config.theme.dark[.accent].hex,
+            SpurwechselConfig.defaultTheme.dark[.accent].hex
+        )
+    }
+
+    func testLoadResultWithUnknownThemeTokenReportsDiagnosticAndFallsBack() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        theme:
+          dark:
+            accentNope: "#112233"
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadResult = configStore.loadResult()
+
+        XCTAssertEqual(
+            loadResult.config.theme.dark[.accent].hex,
+            SpurwechselConfig.defaultTheme.dark[.accent].hex
+        )
+        XCTAssertTrue(loadResult.diagnostics.contains {
+            $0.message.contains("theme.dark.accentNope is unsupported")
+        })
+    }
+
+    func testLoadResultWithInvalidThemeHexReportsDiagnosticAndFallsBack() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        theme:
+          dark:
+            accent: "blue"
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadResult = configStore.loadResult()
+
+        XCTAssertEqual(
+            loadResult.config.theme.dark[.accent].hex,
+            SpurwechselConfig.defaultTheme.dark[.accent].hex
+        )
+        XCTAssertTrue(loadResult.diagnostics.contains {
+            $0.message.contains("theme.dark.accent must be #RRGGBB or #RRGGBBAA")
+        })
+    }
+
+    func testConfigSaveWritesExplicitLightAndDarkThemeMaps() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        var customLight = SpurwechselConfig.defaultTheme.light
+        customLight.colors[.accent] = ThemeColor(hex: "#112233")!
+        let config = SpurwechselConfig(
+            projects: [],
+            theme: ThemeSet(
+                light: customLight,
+                dark: SpurwechselConfig.defaultTheme.dark
+            )
+        )
+
+        try configStore.save(UserConfigFile.explicit(from: config))
+        let savedYAML = try String(contentsOf: configURL, encoding: .utf8)
+
+        XCTAssertTrue(savedYAML.contains("theme:"))
+        XCTAssertTrue(savedYAML.contains("light:"))
+        XCTAssertTrue(savedYAML.contains("dark:"))
+        XCTAssertTrue(savedYAML.contains("background: \"#F8FBFF\""))
+        XCTAssertTrue(savedYAML.contains("accent: \"#112233\""))
+        XCTAssertTrue(savedYAML.contains("overlayStrong: \"#00000085\""))
+    }
+
+    func testConfigRoundTripPreservesCustomAgents() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let customConfig = SpurwechselConfig(
+            version: SpurwechselConfig.currentVersion,
+            projects: [
+                ProjectRecord(path: temporaryDirectoryURL.appendingPathComponent("alpha").path, name: "Alpha")
+            ],
+            agents: [
+                AgentConfigRecord(name: "Claude Fast", command: "claude --model sonnet"),
+                AgentConfigRecord(name: "Codex", command: "codex --sandbox workspace-write")
+            ]
+        )
+
+        try configStore.save(UserConfigFile.explicit(from: customConfig))
+        let loadedConfig = try configStore.load()
+
+        XCTAssertEqual(loadedConfig.agents, customConfig.agents)
+        XCTAssertEqual(loadedConfig.resolvedAgents.map(\.displayName), ["Claude Fast", "Codex"])
+        XCTAssertEqual(loadedConfig.resolvedDefaultAgent.displayName, "Claude Fast")
+    }
+
+    func testConfigRoundTripPreservesDefaultAgentFlag() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let customConfig = SpurwechselConfig(
+            version: SpurwechselConfig.currentVersion,
+            projects: [],
+            agents: [
+                AgentConfigRecord(name: "Claude", command: "claude --skip-permissions", isDefault: true),
+                AgentConfigRecord(name: "Codex", command: "codex --sandbox workspace-write")
+            ]
+        )
+
+        try configStore.save(UserConfigFile.explicit(from: customConfig))
+        let loadedConfig = try configStore.load()
+
+        XCTAssertEqual(loadedConfig.agents, customConfig.agents)
+        XCTAssertEqual(loadedConfig.resolvedDefaultAgent.displayName, "Claude")
+        XCTAssertEqual(loadedConfig.resolvedDefaultAgent.normalizedCommand, "claude --skip-permissions")
+    }
+
+    func testConfigRoundTripUsesFirstAgentAsResolvedDefaultWhenMissingFlag() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let customConfig = SpurwechselConfig(
+            version: SpurwechselConfig.currentVersion,
+            projects: [],
+            agents: [
+                AgentConfigRecord(name: "Claude", command: "claude --print"),
+                AgentConfigRecord(name: "Codex", command: "codex")
+            ]
+        )
+
+        try configStore.save(UserConfigFile.explicit(from: customConfig))
+        let loadedConfig = try configStore.load()
+
+        XCTAssertEqual(loadedConfig.agents.count, 2)
+        XCTAssertFalse(loadedConfig.agents[0].isDefault)
+        XCTAssertFalse(loadedConfig.agents[1].isDefault)
+        XCTAssertEqual(loadedConfig.resolvedDefaultAgent.displayName, "Claude")
+    }
+
+    func testResolvedDefaultAgentUsesFirstMarkedDefault() {
+        let config = SpurwechselConfig(
+            agents: [
+                AgentConfigRecord(name: "One", command: "one"),
+                AgentConfigRecord(name: "Two", command: "two", isDefault: true),
+                AgentConfigRecord(name: "Three", command: "three", isDefault: true)
+            ]
+        )
+
+        XCTAssertEqual(config.resolvedDefaultAgent.displayName, "Two")
+    }
+
+    func testConfigRoundTripPreservesCustomShortcutBinding() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let customConfig = SpurwechselConfig(
+            projects: [],
+            shortcuts: [
+                ShortcutRecord(
+                    action: .toggleCommandBar,
+                    key: "p",
+                    modifiers: [.command, .shift]
+                )
+            ]
+        )
+
+        try configStore.save(UserConfigFile.explicit(from: customConfig))
+        let loadedConfig = try configStore.load()
+
+        XCTAssertEqual(loadedConfig.shortcuts, customConfig.shortcuts)
+        XCTAssertEqual(
+            loadedConfig.shortcutBinding(for: .toggleCommandBar)?.key,
+            "p"
+        )
+        XCTAssertEqual(
+            loadedConfig.shortcutBinding(for: .toggleCommandBar)?.modifiers,
+            [.command, .shift]
+        )
+    }
+
+    func testConfigRoundTripPreservesCustomCodeServerPort() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let customConfig = SpurwechselConfig(
+            codeServer: CodeServerConfig(port: 9091),
+            projects: [],
+            agents: SpurwechselConfig.defaultAgents,
+            shortcuts: SpurwechselConfig.defaultShortcuts
+        )
+
+        try configStore.save(UserConfigFile.explicit(from: customConfig))
+        let loadedConfig = try configStore.load()
+
+        XCTAssertEqual(loadedConfig.codeServer.resolvedPort, 9091)
+    }
+
+    func testLoadConfigWithoutShortcutSectionFallsBackToDefaultResolvedShortcut() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        projects:
+          - path: "\(temporaryDirectoryURL.path)"
+            name: "tmp"
+        agents:
+          - name: "claude"
+            command: "claude"
+            default: true
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadedConfig = try configStore.load()
+
+        XCTAssertEqual(loadedConfig.shortcuts, [])
+        XCTAssertEqual(
+            loadedConfig.shortcutBinding(for: .toggleCommandBar)?.key,
+            "k"
+        )
+        XCTAssertEqual(
+            loadedConfig.shortcutBinding(for: .toggleCommandBar)?.modifiers,
+            [.command]
+        )
+    }
+
+    func testLoadResultWithInvalidCodeServerPortFallsBackToDefaultAndReportsDiagnostic() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        codeServer:
+          port: 70000
+        projects:
+        agents:
+        shortcuts:
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadResult = configStore.loadResult()
+
+        XCTAssertEqual(loadResult.config.codeServer.resolvedPort, CodeServerConfig.defaultPort)
+        XCTAssertTrue(loadResult.diagnostics.contains {
+            $0.message.contains("codeServer.port must be between 1 and 65535")
+        })
+    }
+
+    func testLoadResultWithMalformedYAMLReportsDiagnosticAndUsesDefaults() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        projects:
+          - path: "/tmp/repo"
+            name: [broken
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadResult = configStore.loadResult()
+
+        XCTAssertEqual(loadResult.config.projects, [])
+        XCTAssertEqual(loadResult.config.codeServer.resolvedPort, CodeServerConfig.defaultPort)
+        XCTAssertTrue(loadResult.diagnostics.contains {
+            $0.message.contains("could not be parsed")
+        })
+    }
+
+    func testLoadResultWithInvalidRootReportsDiagnosticAndUsesDefaults() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        - not
+        - a
+        - mapping
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadResult = configStore.loadResult()
+
+        XCTAssertEqual(loadResult.config.projects, [])
+        XCTAssertTrue(loadResult.diagnostics.contains {
+            $0.message.contains("could not be parsed")
+        })
+    }
+
+    func testLoadResultWithMissingProjectPathReportsDiagnosticAndSkipsProject() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        projects:
+          - name: "Missing Path"
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadResult = configStore.loadResult()
+
+        XCTAssertEqual(loadResult.config.projects, [])
+        XCTAssertTrue(loadResult.diagnostics.contains {
+            $0.message.contains("projects[0].path is required")
+        })
+    }
+
+    func testLoadResultWithInvalidAgentRecordReportsDiagnosticAndSkipsAgent() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        agents:
+          - name: "Claude"
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadResult = configStore.loadResult()
+
+        XCTAssertEqual(loadResult.config.agents, [])
+        XCTAssertTrue(loadResult.diagnostics.contains {
+            $0.message.contains("agents[0].command is required")
+        })
+        XCTAssertEqual(loadResult.config.resolvedDefaultAgent.displayName, "claude")
+    }
+
+    func testLoadResultWithUnsupportedShortcutModifierReportsDiagnosticAndDropsUnsupportedModifier() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        shortcuts:
+          - action: "toggle-command-bar"
+            key: "p"
+            modifiers: ["command", "hyper"]
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadResult = configStore.loadResult()
+
+        XCTAssertEqual(loadResult.config.shortcuts.count, 1)
+        XCTAssertEqual(loadResult.config.shortcuts[0].key, "p")
+        XCTAssertEqual(loadResult.config.shortcuts[0].modifiers, [.command])
+        XCTAssertTrue(loadResult.diagnostics.contains {
+            $0.message.contains("unsupported value 'hyper'")
+        })
+    }
+
+    func testImportedRecordsSkipDuplicatesAndNonDirectories() throws {
+        let configStore = ProjectConfigStore(configURL: temporaryDirectoryURL.appendingPathComponent("config.yaml"))
+        let existingDirectory = temporaryDirectoryURL.appendingPathComponent("existing", isDirectory: true)
+        let newDirectory = temporaryDirectoryURL.appendingPathComponent("new", isDirectory: true)
+        let notADirectory = temporaryDirectoryURL.appendingPathComponent("readme.txt", isDirectory: false)
+
+        try FileManager.default.createDirectory(at: existingDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: newDirectory, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: notADirectory.path, contents: Data("hello".utf8))
+
+        let existingRecords = [ProjectRecord(path: existingDirectory.path, name: "existing")]
+        let importedRecords = configStore.importedRecords(
+            from: [
+                URL(fileURLWithPath: existingDirectory.path),
+                URL(fileURLWithPath: "\(newDirectory.path)/."),
+                URL(fileURLWithPath: notADirectory.path)
+            ],
+            existingRecords: existingRecords
+        )
+
+        XCTAssertEqual(importedRecords.count, 1)
+        XCTAssertEqual(importedRecords.first?.path, newDirectory.path)
+        XCTAssertEqual(importedRecords.first?.displayName, "new")
+    }
+
+    @MainActor
+    func testStoreBootsProjectsFromPersistedConfig() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let firstProjectPath = try createGitRepository(named: "first")
+        let secondProjectPath = try createGitRepository(named: "second")
+
+        let configStore = ProjectConfigStore(configURL: configURL)
+        try configStore.save(
+            UserConfigFile.explicit(from: SpurwechselConfig(
+                projects: [
+                    ProjectRecord(path: firstProjectPath.path, name: "First"),
+                    ProjectRecord(path: secondProjectPath.path, name: "Second")
+                ]
+            ))
+        )
+
+        let store = SpurwechselStore(configStore: configStore)
+
+        XCTAssertEqual(store.projects.projects.map(\.name), ["First", "Second"])
+        XCTAssertEqual(store.projects.projects.map(\.branch), ["main", "main"])
+        if case let .project(selectedID) = store.projects.selection {
+            XCTAssertEqual(selectedID, store.projects.projects.first?.id)
+        } else {
+            XCTFail("Expected project selection after loading persisted projects")
+        }
+    }
+
+    @MainActor
+    func testStoreLeavesConfigUntouchedWhenShortcutSectionMissing() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let firstProjectPath = try createGitRepository(named: "first")
+        let yaml = """
+        version: 1
+        projects:
+          - path: "\(firstProjectPath.path)"
+            name: "First"
+        agents:
+          - name: "claude"
+            command: "claude"
+            default: true
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let originalContents = try String(contentsOf: configURL, encoding: .utf8)
+        let store = SpurwechselStore(configStore: configStore)
+
+        let savedConfig = try String(contentsOf: configURL, encoding: .utf8)
+        XCTAssertEqual(savedConfig, originalContents)
+        XCTAssertNil(store.configNotification)
+        XCTAssertEqual(
+            store.commandBarShortcutBinding,
+            ResolvedShortcutBinding(action: .toggleCommandBar, key: "k", modifiers: [.command])
+        )
+    }
+
+    @MainActor
+    func testStoreLeavesConfigUntouchedWhenCodeServerSectionMissing() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let firstProjectPath = try createGitRepository(named: "first")
+        let yaml = """
+        version: 1
+        projects:
+          - path: "\(firstProjectPath.path)"
+            name: "First"
+        agents:
+          - name: "claude"
+            command: "claude"
+            default: true
+        shortcuts:
+          - action: "toggle-command-bar"
+            key: "k"
+            modifiers: ["command"]
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let originalContents = try String(contentsOf: configURL, encoding: .utf8)
+        _ = SpurwechselStore(configStore: configStore)
+
+        let savedConfig = try String(contentsOf: configURL, encoding: .utf8)
+        XCTAssertEqual(savedConfig, originalContents)
+    }
+
+    private func createGitRepository(named name: String) throws -> URL {
+        let repositoryURL = temporaryDirectoryURL.appendingPathComponent(name, isDirectory: true)
+        try FileManager.default.createDirectory(at: repositoryURL, withIntermediateDirectories: true)
+
+        try runGit(arguments: ["init", "--initial-branch", "main"], in: repositoryURL)
+        try runGit(arguments: ["config", "user.name", "Spurwechsel Tests"], in: repositoryURL)
+        try runGit(arguments: ["config", "user.email", "tests@example.com"], in: repositoryURL)
+
+        let readmeURL = repositoryURL.appendingPathComponent("README.md")
+        try "hello".write(to: readmeURL, atomically: true, encoding: .utf8)
+        try runGit(arguments: ["add", "README.md"], in: repositoryURL)
+        try runGit(arguments: ["commit", "-m", "init"], in: repositoryURL)
+
+        return repositoryURL
+    }
+
+    private func runGit(arguments: [String], in directory: URL) throws {
+        let process = Process()
+        process.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+        process.arguments = ["git"] + arguments
+        process.currentDirectoryURL = directory
+
+        let stderrPipe = Pipe()
+        process.standardError = stderrPipe
+
+        try process.run()
+        process.waitUntilExit()
+
+        guard process.terminationStatus == 0 else {
+            let stderrData = stderrPipe.fileHandleForReading.readDataToEndOfFile()
+            let message = String(data: stderrData, encoding: .utf8) ?? "git command failed"
+            XCTFail(message)
+            throw NSError(domain: "ProjectConfigStoreTests", code: Int(process.terminationStatus))
+        }
+    }
+}

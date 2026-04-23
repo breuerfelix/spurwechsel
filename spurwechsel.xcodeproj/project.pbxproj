@@ -1,0 +1,627 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 77;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		E1A1A0012F9B000100AAA001 /* SwiftGitX in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0022F9B000100AAA001 /* SwiftGitX */; };
+		E1A1A0112F9B000100AAA001 /* GhosttyTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0122F9B000100AAA001 /* GhosttyTerminal */; };
+		E1A1A0212F9B000100AAA001 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0222F9B000100AAA001 /* Yams */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		DCD8D5BB2F9A66CD001AA18D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DCD8D5A52F9A66CB001AA18D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DCD8D5AC2F9A66CB001AA18D;
+			remoteInfo = spurwechsel;
+		};
+		DCD8D5C52F9A66CD001AA18D /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = DCD8D5A52F9A66CB001AA18D /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = DCD8D5AC2F9A66CB001AA18D;
+			remoteInfo = spurwechsel;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		DCD8D5AD2F9A66CB001AA18D /* spurwechsel.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = spurwechsel.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		DCD8D5BA2F9A66CD001AA18D /* spurwechselTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = spurwechselTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		DCD8D5C42F9A66CD001AA18D /* spurwechselUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = spurwechselUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+/* End PBXFileReference section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		DCD8D5AF2F9A66CB001AA18D /* spurwechsel */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = spurwechsel;
+			sourceTree = "<group>";
+		};
+		DCD8D5BD2F9A66CD001AA18D /* spurwechselTests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = spurwechselTests;
+			sourceTree = "<group>";
+		};
+		DCD8D5C72F9A66CD001AA18D /* spurwechselUITests */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			path = spurwechselUITests;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DCD8D5AA2F9A66CB001AA18D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				E1A1A0012F9B000100AAA001 /* SwiftGitX in Frameworks */,
+				E1A1A0112F9B000100AAA001 /* GhosttyTerminal in Frameworks */,
+				E1A1A0212F9B000100AAA001 /* Yams in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DCD8D5B72F9A66CD001AA18D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DCD8D5C12F9A66CD001AA18D /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		DCD8D5A42F9A66CB001AA18D = {
+			isa = PBXGroup;
+			children = (
+				DCD8D5AF2F9A66CB001AA18D /* spurwechsel */,
+				DCD8D5BD2F9A66CD001AA18D /* spurwechselTests */,
+				DCD8D5C72F9A66CD001AA18D /* spurwechselUITests */,
+				DCD8D5AE2F9A66CB001AA18D /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		DCD8D5AE2F9A66CB001AA18D /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				DCD8D5AD2F9A66CB001AA18D /* spurwechsel.app */,
+				DCD8D5BA2F9A66CD001AA18D /* spurwechselTests.xctest */,
+				DCD8D5C42F9A66CD001AA18D /* spurwechselUITests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		DCD8D5AC2F9A66CB001AA18D /* spurwechsel */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DCD8D5CE2F9A66CD001AA18D /* Build configuration list for PBXNativeTarget "spurwechsel" */;
+			buildPhases = (
+				DCD8D5A92F9A66CB001AA18D /* Sources */,
+				DCD8D5AA2F9A66CB001AA18D /* Frameworks */,
+				DCD8D5AB2F9A66CB001AA18D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				DCD8D5AF2F9A66CB001AA18D /* spurwechsel */,
+			);
+			name = spurwechsel;
+			packageProductDependencies = (
+				E1A1A0022F9B000100AAA001 /* SwiftGitX */,
+				E1A1A0122F9B000100AAA001 /* GhosttyTerminal */,
+				E1A1A0222F9B000100AAA001 /* Yams */,
+			);
+			productName = spurwechsel;
+			productReference = DCD8D5AD2F9A66CB001AA18D /* spurwechsel.app */;
+			productType = "com.apple.product-type.application";
+		};
+		DCD8D5B92F9A66CD001AA18D /* spurwechselTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DCD8D5D12F9A66CD001AA18D /* Build configuration list for PBXNativeTarget "spurwechselTests" */;
+			buildPhases = (
+				DCD8D5B62F9A66CD001AA18D /* Sources */,
+				DCD8D5B72F9A66CD001AA18D /* Frameworks */,
+				DCD8D5B82F9A66CD001AA18D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DCD8D5BC2F9A66CD001AA18D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				DCD8D5BD2F9A66CD001AA18D /* spurwechselTests */,
+			);
+			name = spurwechselTests;
+			packageProductDependencies = (
+			);
+			productName = spurwechselTests;
+			productReference = DCD8D5BA2F9A66CD001AA18D /* spurwechselTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+		DCD8D5C32F9A66CD001AA18D /* spurwechselUITests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DCD8D5D42F9A66CD001AA18D /* Build configuration list for PBXNativeTarget "spurwechselUITests" */;
+			buildPhases = (
+				DCD8D5C02F9A66CD001AA18D /* Sources */,
+				DCD8D5C12F9A66CD001AA18D /* Frameworks */,
+				DCD8D5C22F9A66CD001AA18D /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				DCD8D5C62F9A66CD001AA18D /* PBXTargetDependency */,
+			);
+			fileSystemSynchronizedGroups = (
+				DCD8D5C72F9A66CD001AA18D /* spurwechselUITests */,
+			);
+			name = spurwechselUITests;
+			packageProductDependencies = (
+			);
+			productName = spurwechselUITests;
+			productReference = DCD8D5C42F9A66CD001AA18D /* spurwechselUITests.xctest */;
+			productType = "com.apple.product-type.bundle.ui-testing";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		DCD8D5A52F9A66CB001AA18D /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				BuildIndependentTargetsInParallel = 1;
+				LastSwiftUpdateCheck = 2640;
+				LastUpgradeCheck = 2640;
+				TargetAttributes = {
+					DCD8D5AC2F9A66CB001AA18D = {
+						CreatedOnToolsVersion = 26.4.1;
+					};
+					DCD8D5B92F9A66CD001AA18D = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = DCD8D5AC2F9A66CB001AA18D;
+					};
+					DCD8D5C32F9A66CD001AA18D = {
+						CreatedOnToolsVersion = 26.4.1;
+						TestTargetID = DCD8D5AC2F9A66CB001AA18D;
+					};
+				};
+			};
+			buildConfigurationList = DCD8D5A82F9A66CB001AA18D /* Build configuration list for PBXProject "spurwechsel" */;
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = DCD8D5A42F9A66CB001AA18D;
+			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				E1A1A0032F9B000100AAA001 /* XCRemoteSwiftPackageReference "SwiftGitX" */,
+				E1A1A0142F9B000100AAA001 /* XCLocalSwiftPackageReference "Vendor/libghostty-spm" */,
+				E1A1A0232F9B000100AAA001 /* XCRemoteSwiftPackageReference "Yams" */,
+			);
+			preferredProjectObjectVersion = 77;
+			productRefGroup = DCD8D5AE2F9A66CB001AA18D /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DCD8D5AC2F9A66CB001AA18D /* spurwechsel */,
+				DCD8D5B92F9A66CD001AA18D /* spurwechselTests */,
+				DCD8D5C32F9A66CD001AA18D /* spurwechselUITests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		DCD8D5AB2F9A66CB001AA18D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DCD8D5B82F9A66CD001AA18D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DCD8D5C22F9A66CD001AA18D /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DCD8D5A92F9A66CB001AA18D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DCD8D5B62F9A66CD001AA18D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		DCD8D5C02F9A66CD001AA18D /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		DCD8D5BC2F9A66CD001AA18D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DCD8D5AC2F9A66CB001AA18D /* spurwechsel */;
+			targetProxy = DCD8D5BB2F9A66CD001AA18D /* PBXContainerItemProxy */;
+		};
+		DCD8D5C62F9A66CD001AA18D /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = DCD8D5AC2F9A66CB001AA18D /* spurwechsel */;
+			targetProxy = DCD8D5C52F9A66CD001AA18D /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		DCD8D5CC2F9A66CD001AA18D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+			};
+			name = Debug;
+		};
+		DCD8D5CD2F9A66CD001AA18D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				ASSETCATALOG_COMPILER_GENERATE_SWIFT_ASSET_SYMBOL_EXTENSIONS = YES;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++20";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_USER_SCRIPT_SANDBOXING = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu17;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = macosx;
+				SWIFT_COMPILATION_MODE = wholemodule;
+			};
+			name = Release;
+		};
+		DCD8D5CF2F9A66CD001AA18D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.breuer.spurwechsel;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Debug;
+		};
+		DCD8D5D02F9A66CD001AA18D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
+				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_STYLE = Automatic;
+				COMBINE_HIDPI_IMAGES = YES;
+				CURRENT_PROJECT_VERSION = 1;
+				ENABLE_PREVIEWS = YES;
+				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = Info.plist;
+				INFOPLIST_KEY_NSHumanReadableCopyright = "";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/../Frameworks",
+				);
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.breuer.spurwechsel;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				REGISTER_APP_GROUPS = YES;
+				STRING_CATALOG_GENERATE_SYMBOLS = YES;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_DEFAULT_ACTOR_ISOLATION = MainActor;
+				SWIFT_EMIT_LOC_STRINGS = YES;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+			};
+			name = Release;
+		};
+		DCD8D5D22F9A66CD001AA18D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.breuer.spurwechselTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/spurwechsel.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/spurwechsel";
+			};
+			name = Debug;
+		};
+		DCD8D5D32F9A66CD001AA18D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 26.2;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.breuer.spurwechselTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/spurwechsel.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/spurwechsel";
+			};
+			name = Release;
+		};
+		DCD8D5D52F9A66CD001AA18D /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.breuer.spurwechselUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = spurwechsel;
+			};
+			name = Debug;
+		};
+		DCD8D5D62F9A66CD001AA18D /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				CURRENT_PROJECT_VERSION = 1;
+				GENERATE_INFOPLIST_FILE = YES;
+				MARKETING_VERSION = 1.0;
+				PRODUCT_BUNDLE_IDENTIFIER = dev.breuer.spurwechselUITests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				STRING_CATALOG_GENERATE_SYMBOLS = NO;
+				SWIFT_APPROACHABLE_CONCURRENCY = YES;
+				SWIFT_EMIT_LOC_STRINGS = NO;
+				SWIFT_UPCOMING_FEATURE_MEMBER_IMPORT_VISIBILITY = YES;
+				SWIFT_VERSION = 5.0;
+				TEST_TARGET_NAME = spurwechsel;
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		DCD8D5A82F9A66CB001AA18D /* Build configuration list for PBXProject "spurwechsel" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DCD8D5CC2F9A66CD001AA18D /* Debug */,
+				DCD8D5CD2F9A66CD001AA18D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DCD8D5CE2F9A66CD001AA18D /* Build configuration list for PBXNativeTarget "spurwechsel" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DCD8D5CF2F9A66CD001AA18D /* Debug */,
+				DCD8D5D02F9A66CD001AA18D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DCD8D5D12F9A66CD001AA18D /* Build configuration list for PBXNativeTarget "spurwechselTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DCD8D5D22F9A66CD001AA18D /* Debug */,
+				DCD8D5D32F9A66CD001AA18D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DCD8D5D42F9A66CD001AA18D /* Build configuration list for PBXNativeTarget "spurwechselUITests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DCD8D5D52F9A66CD001AA18D /* Debug */,
+				DCD8D5D62F9A66CD001AA18D /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+
+/* Begin XCLocalSwiftPackageReference section */
+		E1A1A0142F9B000100AAA001 /* XCLocalSwiftPackageReference "Vendor/libghostty-spm" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = "Vendor/libghostty-spm";
+		};
+/* End XCLocalSwiftPackageReference section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		E1A1A0032F9B000100AAA001 /* XCRemoteSwiftPackageReference "SwiftGitX" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/ibrahimcetin/SwiftGitX.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 0.4.0;
+			};
+		};
+		E1A1A0232F9B000100AAA001 /* XCRemoteSwiftPackageReference "Yams" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/jpsim/Yams.git";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 6.2.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		E1A1A0022F9B000100AAA001 /* SwiftGitX */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1A1A0032F9B000100AAA001 /* XCRemoteSwiftPackageReference "SwiftGitX" */;
+			productName = SwiftGitX;
+		};
+		E1A1A0122F9B000100AAA001 /* GhosttyTerminal */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1A1A0142F9B000100AAA001 /* XCLocalSwiftPackageReference "Vendor/libghostty-spm" */;
+			productName = GhosttyTerminal;
+		};
+		E1A1A0222F9B000100AAA001 /* Yams */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1A1A0232F9B000100AAA001 /* XCRemoteSwiftPackageReference "Yams" */;
+			productName = Yams;
+		};
+/* End XCSwiftPackageProductDependency section */
+	};
+	rootObject = DCD8D5A52F9A66CB001AA18D /* Project object */;
+}

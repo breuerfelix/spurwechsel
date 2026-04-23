@@ -1,0 +1,3 @@
+[submodule "Vendor/libghostty-spm"]
+	path = Vendor/libghostty-spm
+	url = https://github.com/breuerfelix/libghostty-spm.git
