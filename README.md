@@ -9,6 +9,8 @@ The name is derived from the german Autobahn. Who wants to drive fast in germany
 ```sh
 brew install code-server # optional for vscode inside spurwechsel (recommended)
 brew install --cask breuerfelix/tap/spurwechsel
+# the app is not signed yet, also there is no icon yet ...
+sudo xattr -r -d com.apple.quarantine /Applications/Spurwechsel.app
 ```
 
 ## Features
