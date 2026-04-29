@@ -112,12 +112,12 @@ jobs:
           TAP_REPO_TOKEN: ${{ secrets.TAP_REPO_TOKEN }}
         run: |
           if [[ -z "$TAP_REPO_TOKEN" ]]; then
-            echo "TAP_REPO_TOKEN secret missing. Cannot update breuerfelix/tap." >&2
+            echo "TAP_REPO_TOKEN secret missing. Cannot update breuerfelix/homebrew-tap." >&2
             exit 1
           fi
 
           TAP_DIR="$(mktemp -d "$RUNNER_TEMP/tap.XXXXXX")"
-          git clone "https://x-access-token:${TAP_REPO_TOKEN}@github.com/breuerfelix/tap.git" "$TAP_DIR"
+          git clone "https://x-access-token:${TAP_REPO_TOKEN}@github.com/breuerfelix/homebrew-tap.git" "$TAP_DIR"
           echo "dir=$TAP_DIR" >> "$GITHUB_OUTPUT"
 
       - name: Update tap cask
