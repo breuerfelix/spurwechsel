@@ -7,7 +7,7 @@ enum AppIntent: Equatable {
     case toggleCommandBar
     case openCommandBar(projectContextID: UUID?, workspaceContext: WorkspaceSelection?)
     case closeCommandBar(restorePreviousFocus: Bool)
-    case executeCommand(AppCommand, projectContextID: UUID?, workspaceContext: WorkspaceSelection?)
+    case executeCommand(CommandID, projectContextID: UUID?, workspaceContext: WorkspaceSelection?)
     case toggleLeftSidebar
     case toggleRightSidebar
     case togglePreview

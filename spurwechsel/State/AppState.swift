@@ -134,27 +134,31 @@ enum ThemeMode: String, CaseIterable, Hashable {
     }
 }
 
-enum AppCommand: String, CaseIterable, Hashable {
-    case addProject
-    case addWorktree
-    case deleteWorktree
-    case selectProject
-    case selectNextProject
-    case selectPreviousProject
-    case createAgent
-    case createDefaultAgent
-    case deleteAgent
-    case selectPreviousAgent
-    case selectNextAgent
-    case openTerminalView
-    case openVSCodeView
-    case openAgentView
-    case togglePreviewPane
-    case toggleRightSidebar
-    case toggleLeftSidebar
+enum CommandID: String, CaseIterable, Hashable, Codable {
+    case toggleCommandBar = "toggle-command-bar"
+    case addProject = "add-new-project"
+    case addWorktree = "add-worktree"
+    case deleteWorktree = "delete-worktree"
+    case selectProject = "select-project"
+    case selectNextProject = "select-next-project"
+    case selectPreviousProject = "select-previous-project"
+    case createAgent = "create-agent"
+    case createDefaultAgent = "create-default-agent"
+    case deleteAgent = "delete-agent"
+    case selectPreviousAgent = "select-previous-agent"
+    case selectNextAgent = "select-next-agent"
+    case openTerminalView = "open-terminal-view"
+    case openVSCodeView = "open-vscode-view"
+    case openAgentView = "open-agent-view"
+    case togglePreviewPane = "toggle-preview-pane"
+    case toggleRightSidebar = "toggle-right-sidebar"
+    case toggleLeftSidebar = "toggle-left-sidebar"
+    case quit = "quit"
 
     var title: String {
         switch self {
+        case .toggleCommandBar:
+            return "Toggle Command Bar"
         case .addProject:
             return "Add New Project"
         case .addWorktree:
@@ -189,11 +193,15 @@ enum AppCommand: String, CaseIterable, Hashable {
             return "Toggle Right Sidebar"
         case .toggleLeftSidebar:
             return "Toggle Left Sidebar"
+        case .quit:
+            return "Quit"
         }
     }
 
     var symbolName: String {
         switch self {
+        case .toggleCommandBar:
+            return "magnifyingglass"
         case .addProject:
             return "folder.badge.plus"
         case .addWorktree, .deleteWorktree:
@@ -212,11 +220,15 @@ enum AppCommand: String, CaseIterable, Hashable {
             return "sidebar.right"
         case .toggleLeftSidebar:
             return "sidebar.left"
+        case .quit:
+            return "xmark.circle"
         }
     }
 
     var keywords: [String] {
         switch self {
+        case .toggleCommandBar:
+            return ["command", "palette", "bar", "search", "toggle"]
         case .addProject:
             return ["new", "project", "folder", "import", "workspace"]
         case .addWorktree:
@@ -251,46 +263,13 @@ enum AppCommand: String, CaseIterable, Hashable {
             return ["right", "sidebar", "toggle", "panel"]
         case .toggleLeftSidebar:
             return ["left", "sidebar", "toggle", "panel"]
+        case .quit:
+            return ["quit", "exit", "close", "application", "app"]
         }
     }
 
     var accessibilityID: String {
-        switch self {
-        case .addProject:
-            return "add-new-project"
-        case .addWorktree:
-            return "add-worktree"
-        case .deleteWorktree:
-            return "delete-worktree"
-        case .selectProject:
-            return "select-project"
-        case .selectNextProject:
-            return "select-next-project"
-        case .selectPreviousProject:
-            return "select-previous-project"
-        case .createAgent:
-            return "create-agent"
-        case .createDefaultAgent:
-            return "create-default-agent"
-        case .deleteAgent:
-            return "delete-agent"
-        case .selectPreviousAgent:
-            return "select-previous-agent"
-        case .selectNextAgent:
-            return "select-next-agent"
-        case .openTerminalView:
-            return "open-terminal-view"
-        case .openVSCodeView:
-            return "open-vscode-view"
-        case .openAgentView:
-            return "open-agent-view"
-        case .togglePreviewPane:
-            return "toggle-preview-pane"
-        case .toggleRightSidebar:
-            return "toggle-right-sidebar"
-        case .toggleLeftSidebar:
-            return "toggle-left-sidebar"
-        }
+        rawValue
     }
 }
 

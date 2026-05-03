@@ -40,10 +40,66 @@ final class ProjectConfigStoreTests: XCTestCase {
         XCTAssertEqual(loadedConfig.resolvedDefaultAgent.displayName, "claude")
         XCTAssertEqual(loadedConfig.resolvedShortcuts.count, 1)
         XCTAssertEqual(
-            loadedConfig.resolvedShortcuts.first?.action,
+            loadedConfig.resolvedShortcuts.first?.command,
             .toggleCommandBar
         )
         XCTAssertEqual(loadedConfig.theme, initialConfig.theme)
+    }
+
+    func testLoadResultEnsuringManagedFilesBootstrapsConfigAndAgentsGuide() throws {
+        let configDirectoryURL = temporaryDirectoryURL.appendingPathComponent(".spurwechsel", isDirectory: true)
+        let configURL = configDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+
+        let loadResult = configStore.loadResultEnsuringManagedFiles()
+
+        XCTAssertFalse(loadResult.hasIssues)
+        XCTAssertTrue(FileManager.default.fileExists(atPath: configURL.path))
+
+        let agentsURL = configDirectoryURL.appendingPathComponent("AGENTS.md")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: agentsURL.path))
+
+        let configContents = try String(contentsOf: configURL, encoding: .utf8)
+        XCTAssertTrue(configContents.contains("version: \(SpurwechselConfig.currentVersion)"))
+        XCTAssertTrue(configContents.contains("codeServer:"))
+
+        let agentsContents = try String(contentsOf: agentsURL, encoding: .utf8)
+        XCTAssertTrue(agentsContents.contains("# Spurwechsel Agent Config Guide"))
+        XCTAssertTrue(agentsContents.contains("This file is managed by Spurwechsel."))
+        XCTAssertTrue(agentsContents.contains("## Supported shortcut command IDs"))
+    }
+
+    func testLoadResultEnsuringManagedFilesOverwritesStaleAgentsGuide() throws {
+        let configDirectoryURL = temporaryDirectoryURL.appendingPathComponent(".spurwechsel", isDirectory: true)
+        let configURL = configDirectoryURL.appendingPathComponent("config.yaml")
+        let agentsURL = configDirectoryURL.appendingPathComponent("AGENTS.md")
+        let configStore = ProjectConfigStore(configURL: configURL)
+
+        try FileManager.default.createDirectory(at: configDirectoryURL, withIntermediateDirectories: true)
+        try "version: 1\n".write(to: configURL, atomically: true, encoding: .utf8)
+        try "user custom text".write(to: agentsURL, atomically: true, encoding: .utf8)
+
+        _ = configStore.loadResultEnsuringManagedFiles()
+
+        let agentsContents = try String(contentsOf: agentsURL, encoding: .utf8)
+        XCTAssertFalse(agentsContents.contains("user custom text"))
+        XCTAssertTrue(agentsContents.contains("# Spurwechsel Agent Config Guide"))
+    }
+
+    func testConfigSaveOverwritesStaleAgentsGuide() throws {
+        let configDirectoryURL = temporaryDirectoryURL.appendingPathComponent(".spurwechsel", isDirectory: true)
+        let configURL = configDirectoryURL.appendingPathComponent("config.yaml")
+        let agentsURL = configDirectoryURL.appendingPathComponent("AGENTS.md")
+        let configStore = ProjectConfigStore(configURL: configURL)
+
+        try FileManager.default.createDirectory(at: configDirectoryURL, withIntermediateDirectories: true)
+        try "stale".write(to: agentsURL, atomically: true, encoding: .utf8)
+
+        try configStore.save(UserConfigFile.explicit(from: SpurwechselConfig()))
+
+        let agentsContents = try String(contentsOf: agentsURL, encoding: .utf8)
+        XCTAssertFalse(agentsContents.contains("stale"))
+        XCTAssertTrue(agentsContents.contains("## Example"))
     }
 
     func testLoadResultWithoutThemeSectionUsesBuiltInDefaults() throws {
@@ -236,7 +292,7 @@ final class ProjectConfigStoreTests: XCTestCase {
             projects: [],
             shortcuts: [
                 ShortcutRecord(
-                    action: .toggleCommandBar,
+                    command: .toggleCommandBar,
                     key: "p",
                     modifiers: [.command, .shift]
                 )
@@ -255,6 +311,26 @@ final class ProjectConfigStoreTests: XCTestCase {
             loadedConfig.shortcutBinding(for: .toggleCommandBar)?.modifiers,
             [.command, .shift]
         )
+    }
+
+    func testResolvedShortcutDisplayLabelUsesGlyphsAndUppercasesKey() {
+        let binding = ResolvedShortcutBinding(
+            command: .toggleCommandBar,
+            key: "p",
+            modifiers: [.command, .shift, .option]
+        )
+
+        XCTAssertEqual(binding?.displayLabel, "⌘⇧⌥P")
+    }
+
+    func testResolvedShortcutDisplayLabelPreservesModifierDisplayOrder() {
+        let binding = ResolvedShortcutBinding(
+            command: .createDefaultAgent,
+            key: "t",
+            modifiers: [.control, .option]
+        )
+
+        XCTAssertEqual(binding?.displayLabel, "⌥⌃T")
     }
 
     func testConfigRoundTripPreservesCustomCodeServerPort() throws {
@@ -403,7 +479,7 @@ final class ProjectConfigStoreTests: XCTestCase {
         let yaml = """
         version: 1
         shortcuts:
-          - action: "toggle-command-bar"
+          - command: "toggle-command-bar"
             key: "p"
             modifiers: ["command", "hyper"]
         """
@@ -495,8 +571,8 @@ final class ProjectConfigStoreTests: XCTestCase {
         XCTAssertEqual(savedConfig, originalContents)
         XCTAssertNil(store.configNotification)
         XCTAssertEqual(
-            store.commandBarShortcutBinding,
-            ResolvedShortcutBinding(action: .toggleCommandBar, key: "k", modifiers: [.command])
+            store.shortcutBinding(for: .toggleCommandBar),
+            ResolvedShortcutBinding(command: .toggleCommandBar, key: "k", modifiers: [.command])
         )
     }
 
@@ -514,7 +590,7 @@ final class ProjectConfigStoreTests: XCTestCase {
             command: "claude"
             default: true
         shortcuts:
-          - action: "toggle-command-bar"
+          - command: "toggle-command-bar"
             key: "k"
             modifiers: ["command"]
         """
@@ -526,6 +602,20 @@ final class ProjectConfigStoreTests: XCTestCase {
 
         let savedConfig = try String(contentsOf: configURL, encoding: .utf8)
         XCTAssertEqual(savedConfig, originalContents)
+    }
+
+    @MainActor
+    func testStoreBootstrapsManagedConfigArtifactsOnInit() throws {
+        let configURL = temporaryDirectoryURL
+            .appendingPathComponent(".spurwechsel", isDirectory: true)
+            .appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+
+        _ = SpurwechselStore(configStore: configStore)
+
+        let agentsURL = configURL.deletingLastPathComponent().appendingPathComponent("AGENTS.md")
+        XCTAssertTrue(FileManager.default.fileExists(atPath: configURL.path))
+        XCTAssertTrue(FileManager.default.fileExists(atPath: agentsURL.path))
     }
 
     private func createGitRepository(named name: String) throws -> URL {

@@ -3,7 +3,7 @@ import SwiftUI
 struct WorkspaceSidebarView: View {
     @ObservedObject var shellStore: ShellStore
     @ObservedObject var workspaceStore: WorkspaceStore
-    let executeCommand: (AppCommand) -> Void
+    let executeCommand: (CommandID) -> Void
     let toggleTheme: () -> Void
     let selectWorkspace: (WorkspaceSelection) -> Void
     let addWorktree: (UUID) -> Void
@@ -54,7 +54,7 @@ struct WorkspaceSidebarView: View {
 }
 
 private struct WorkspaceSidebarHeader: View {
-    let executeCommand: (AppCommand) -> Void
+    let executeCommand: (CommandID) -> Void
     let theme: SpurTheme
 
     @State private var isHovering = false

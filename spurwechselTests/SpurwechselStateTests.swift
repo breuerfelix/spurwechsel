@@ -577,7 +577,7 @@ final class SpurwechselStateTests: XCTestCase {
             UserConfigFile.explicit(from: SpurwechselConfig(
                 shortcuts: [
                     ShortcutRecord(
-                        action: .toggleCommandBar,
+                        command: .toggleCommandBar,
                         key: "p",
                         modifiers: [.command]
                     )
@@ -586,6 +586,11 @@ final class SpurwechselStateTests: XCTestCase {
         )
 
         let store = SpurwechselStore(configStore: configStore)
+        XCTAssertEqual(
+            store.shortcutBinding(for: .toggleCommandBar),
+            ResolvedShortcutBinding(command: .toggleCommandBar, key: "p", modifiers: [.command])
+        )
+
         let commandP = try XCTUnwrap(
             NSEvent.keyEvent(
                 with: .keyDown,
@@ -626,6 +631,10 @@ final class SpurwechselStateTests: XCTestCase {
     @MainActor
     func testDefaultShortcutConsumesCommandKWhenConfigOmitsShortcuts() throws {
         let store = SpurwechselStore()
+        XCTAssertEqual(
+            store.shortcutBinding(for: .toggleCommandBar),
+            ResolvedShortcutBinding(command: .toggleCommandBar, key: "k", modifiers: [.command])
+        )
         let commandK = try XCTUnwrap(NSEvent.keyEvent(
             with: .keyDown,
             location: .zero,
@@ -664,6 +673,39 @@ final class SpurwechselStateTests: XCTestCase {
 
         XCTAssertFalse(store.commandBar.isPresented)
         XCTAssertFalse(store.commandBarShouldRestorePreviousFocus)
+    }
+
+    @MainActor
+    func testQuitCommandAppearsInCommandPaletteSearch() {
+        let store = SpurwechselStore()
+
+        store.openCommandBar()
+        XCTAssertTrue(store.filteredCommands.contains(.quit))
+
+        store.updateCommandQuery("quit")
+
+        XCTAssertTrue(store.filteredCommands.contains(.quit))
+    }
+
+    @MainActor
+    func testQuitCommandClosesCommandBarAndInvokesQuitHandler() {
+        final class QuitSpy {
+            var callCount = 0
+        }
+
+        let spy = QuitSpy()
+        let store = SpurwechselStore(
+            applicationQuitHandler: {
+                spy.callCount += 1
+            }
+        )
+
+        store.openCommandBar()
+        store.executeCommand(.quit)
+
+        XCTAssertFalse(store.commandBar.isPresented)
+        XCTAssertFalse(store.commandBarShouldRestorePreviousFocus)
+        XCTAssertEqual(spy.callCount, 1)
     }
 
     @MainActor

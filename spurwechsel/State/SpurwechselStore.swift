@@ -106,6 +106,7 @@ final class SpurwechselAppStore: ObservableObject {
     let dependencies: AppDependencies
     let configStore: ProjectConfigStore
     let importURLsProvider: () -> [URL]?
+    let applicationQuitHandler: @MainActor () -> Void
     let gitService: GitRepositoryServicing
     let terminalRegistry: TerminalSessionRegistry
     let vscodeServerRuntime: VSCodeServerRuntime
@@ -125,7 +126,8 @@ final class SpurwechselAppStore: ObservableObject {
         configStore: ProjectConfigStore? = nil,
         gitService: GitRepositoryServicing? = nil,
         importURLsProvider: (() -> [URL]?)? = nil,
-        dependencies: AppDependencies? = nil
+        dependencies: AppDependencies? = nil,
+        applicationQuitHandler: @escaping @MainActor () -> Void = { NSApp.terminate(nil) }
     ) {
         let resolvedDependencies = dependencies ?? AppDependencies.live(
             configStore: configStore,
@@ -136,10 +138,11 @@ final class SpurwechselAppStore: ObservableObject {
         self.configStore = resolvedDependencies.configStore
         self.gitService = resolvedDependencies.gitService
         self.importURLsProvider = resolvedDependencies.importURLsProvider
+        self.applicationQuitHandler = applicationQuitHandler
         self.terminalRegistry = resolvedDependencies.terminalRegistry
         self.vscodeServerRuntime = resolvedDependencies.vscodeServerRuntime
 
-        let loadResult = self.configStore.loadResult()
+        let loadResult = self.configStore.loadResultEnsuringManagedFiles()
         let loadedProjects = projects ?? ProjectsState.fromImportedProjects([])
         self.shellStore = ShellStore(
             layout: layout ?? PreviewFixtures.layoutState,

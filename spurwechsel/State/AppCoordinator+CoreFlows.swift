@@ -4,8 +4,18 @@ import GhosttyTerminal
 import os
 import SwiftUI
 
+enum CommandInvocationSource {
+    case commandBar
+    case shortcut
+    case direct
+}
+
 @MainActor
 extension AppCoordinator {
+    func requestApplicationQuit() {
+        store.applicationQuitHandler()
+    }
+
     func shutdownTerminalRuntimes() {
         Task {
             _ = await prepareForTermination()
@@ -207,18 +217,8 @@ extension AppCoordinator {
         projectConfig.resolvedShortcuts
     }
 
-    var commandBarShortcutBinding: ResolvedShortcutBinding {
-        guard let binding = projectConfig.shortcutBinding(for: .toggleCommandBar) else {
-            return ResolvedShortcutBinding(action: .toggleCommandBar, key: "k", modifiers: [.command])!
-        }
-        return binding
-    }
-
-    var createDefaultAgentShortcutBinding: ResolvedShortcutBinding {
-        guard let binding = projectConfig.shortcutBinding(for: .createDefaultAgent) else {
-            return ResolvedShortcutBinding(action: .createDefaultAgent, key: "t", modifiers: [.command])!
-        }
-        return binding
+    func shortcutBinding(for command: CommandID) -> ResolvedShortcutBinding? {
+        projectConfig.shortcutBinding(for: command)
     }
 
     @discardableResult
@@ -237,32 +237,27 @@ extension AppCoordinator {
             return false
         }
 
-        dispatchShortcutAction(matchedBinding.action)
+        dispatchShortcutCommand(matchedBinding.command)
         return true
     }
 
-    func dispatchShortcutAction(_ action: ShortcutActionID) {
-        switch action {
-        case .toggleCommandBar:
-            toggleCommandBar()
-        case .createDefaultAgent:
-            createDefaultAgent(workspaceContext: nil)
-        }
+    func dispatchShortcutCommand(_ command: CommandID) {
+        executeCommand(command, source: .shortcut)
     }
 
-    var filteredCommands: [AppCommand] {
+    var filteredCommands: [CommandID] {
         guard case .commandList = commandBar.mode else {
             return []
         }
 
         let trimmedQuery = commandBar.query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let commands = AppCommand.allCases
+        let commands = CommandID.allCases
 
         guard !trimmedQuery.isEmpty else {
             return commands
         }
 
-        let scored = commands.enumerated().compactMap { index, command -> (AppCommand, Int, Int)? in
+        let scored = commands.enumerated().compactMap { index, command -> (CommandID, Int, Int)? in
             let candidateStrings = [command.title] + command.keywords
             let bestScore = candidateStrings.compactMap {
                 Self.fuzzyScore(query: trimmedQuery, candidate: $0)
@@ -471,24 +466,35 @@ extension AppCoordinator {
         executeCommand(
             commands[selectedIndex],
             projectContextID: commandBar.projectContextID,
-            workspaceContext: commandBar.workspaceContext
+            workspaceContext: commandBar.workspaceContext,
+            source: .commandBar
         )
     }
 
     func executeCommand(
-        _ command: AppCommand,
+        _ command: CommandID,
         projectContextID: UUID? = nil,
-        workspaceContext: WorkspaceSelection? = nil
+        workspaceContext: WorkspaceSelection? = nil,
+        source: CommandInvocationSource = .direct
     ) {
         Self.logger.debug("Execute command: \(command.rawValue, privacy: .public)")
         switch command {
+        case .toggleCommandBar:
+            toggleCommandBar()
         case .addProject:
             closeCommandBar(restorePreviousFocus: false)
             presentProjectImportPicker()
         case .addWorktree:
-            beginAddWorktreeFlow(projectContextID: projectContextID)
+            beginAddWorktreeFlow(
+                projectContextID: projectContextID,
+                source: source,
+                workspaceContext: workspaceContext
+            )
         case .deleteWorktree:
-            beginDeleteWorktreeFlow()
+            beginDeleteWorktreeFlow(
+                source: source,
+                workspaceContext: workspaceContext
+            )
         case .selectProject:
             beginSelectProjectFlow()
         case .selectNextProject:
@@ -498,11 +504,17 @@ extension AppCoordinator {
             selectAdjacentWorkspace(offset: -1)
             closeCommandBar(restorePreviousFocus: false)
         case .createAgent:
-            beginCreateAgentFlow(workspaceContext: workspaceContext ?? commandBar.workspaceContext)
+            beginCreateAgentFlow(
+                workspaceContext: workspaceContext ?? commandBar.workspaceContext,
+                source: source
+            )
         case .createDefaultAgent:
-            createDefaultAgent(workspaceContext: workspaceContext ?? commandBar.workspaceContext)
+            createDefaultAgent(
+                workspaceContext: workspaceContext ?? commandBar.workspaceContext,
+                source: source
+            )
         case .deleteAgent:
-            beginDeleteAgentFlow()
+            beginDeleteAgentFlow(source: source)
         case .selectPreviousAgent:
             selectAdjacentAgent(offset: -1)
             closeCommandBar(restorePreviousFocus: false)
@@ -527,6 +539,9 @@ extension AppCoordinator {
         case .toggleLeftSidebar:
             toggleLeftSidebar()
             closeCommandBar(restorePreviousFocus: false)
+        case .quit:
+            closeCommandBar(restorePreviousFocus: false)
+            requestApplicationQuit()
         }
     }
 
@@ -592,25 +607,28 @@ extension AppCoordinator {
 
     func addAgent(to selection: WorkspaceSelection) {
         openCommandBar(workspaceContext: selection)
-        executeCommand(.createAgent, workspaceContext: selection)
+        executeCommand(.createAgent, workspaceContext: selection, source: .commandBar)
     }
 
-    func createDefaultAgent(workspaceContext: WorkspaceSelection?) {
+    func createDefaultAgent(
+        workspaceContext: WorkspaceSelection?,
+        source: CommandInvocationSource = .direct
+    ) {
         guard let resolvedSelection = resolveWorkspaceContext(preferred: workspaceContext) else {
-            commandBar.notice = CommandBarNotice(
-                text: "Select project or worktree first, then run Create Default Agent.",
-                isError: true
+            presentCommandBarError(
+                "Select project or worktree first, then run Create Default Agent.",
+                source: source,
+                workspaceContext: workspaceContext
             )
-            commandBar.mode = .commandList
             return
         }
 
         guard projects.path(for: resolvedSelection) != nil else {
-            commandBar.notice = CommandBarNotice(
-                text: "Selected workspace has no launch path.",
-                isError: true
+            presentCommandBarError(
+                "Selected workspace has no launch path.",
+                source: source,
+                workspaceContext: workspaceContext
             )
-            commandBar.mode = .commandList
             return
         }
 
@@ -708,15 +726,20 @@ extension AppCoordinator {
         return validRecords.count
     }
 
-    private func beginAddWorktreeFlow(projectContextID: UUID?) {
+    private func beginAddWorktreeFlow(
+        projectContextID: UUID?,
+        source: CommandInvocationSource,
+        workspaceContext: WorkspaceSelection?
+    ) {
         guard let resolvedProjectID = resolveProjectContextID(preferred: projectContextID),
               let project = projects.project(id: resolvedProjectID)
         else {
-            commandBar.notice = CommandBarNotice(
-                text: "Select project first, then run Add Worktree.",
-                isError: true
+            presentCommandBarError(
+                "Select project first, then run Add Worktree.",
+                source: source,
+                projectContextID: projectContextID,
+                workspaceContext: workspaceContext
             )
-            commandBar.mode = .commandList
             return
         }
 
@@ -735,15 +758,19 @@ extension AppCoordinator {
         commandBar.resetQuery()
     }
 
-    private func beginDeleteWorktreeFlow() {
+    private func beginDeleteWorktreeFlow(
+        source: CommandInvocationSource,
+        workspaceContext: WorkspaceSelection?
+    ) {
         guard let resolvedProjectID = resolveProjectContextID(preferred: commandBar.projectContextID),
               let project = projects.project(id: resolvedProjectID)
         else {
-            commandBar.notice = CommandBarNotice(
-                text: "Select project first, then run Delete Worktree.",
-                isError: true
+            presentCommandBarError(
+                "Select project first, then run Delete Worktree.",
+                source: source,
+                projectContextID: commandBar.projectContextID,
+                workspaceContext: workspaceContext
             )
-            commandBar.mode = .commandList
             return
         }
 
@@ -846,13 +873,12 @@ extension AppCoordinator {
         commandBar.highlightedIndex = resetToFirstWhenOutOfRange ? 0 : (itemCount - 1)
     }
 
-    private func beginDeleteAgentFlow() {
+    private func beginDeleteAgentFlow(source: CommandInvocationSource) {
         guard let session = selectedAgent else {
-            commandBar.notice = CommandBarNotice(
-                text: "Select an agent session first, then run Delete Agent.",
-                isError: true
+            presentCommandBarError(
+                "Select an agent session first, then run Delete Agent.",
+                source: source
             )
-            commandBar.mode = .commandList
             return
         }
 
@@ -869,22 +895,25 @@ extension AppCoordinator {
         commandBar.resetQuery()
     }
 
-    private func beginCreateAgentFlow(workspaceContext: WorkspaceSelection?) {
+    private func beginCreateAgentFlow(
+        workspaceContext: WorkspaceSelection?,
+        source: CommandInvocationSource
+    ) {
         guard let resolvedSelection = resolveWorkspaceContext(preferred: workspaceContext) else {
-            commandBar.notice = CommandBarNotice(
-                text: "Select project or worktree first, then run Create Agent.",
-                isError: true
+            presentCommandBarError(
+                "Select project or worktree first, then run Create Agent.",
+                source: source,
+                workspaceContext: workspaceContext
             )
-            commandBar.mode = .commandList
             return
         }
 
         guard projects.path(for: resolvedSelection) != nil else {
-            commandBar.notice = CommandBarNotice(
-                text: "Selected workspace has no launch path.",
-                isError: true
+            presentCommandBarError(
+                "Selected workspace has no launch path.",
+                source: source,
+                workspaceContext: workspaceContext
             )
-            commandBar.mode = .commandList
             return
         }
 
@@ -911,6 +940,19 @@ extension AppCoordinator {
         )
         commandBar.notice = nil
         commandBar.resetQuery()
+    }
+
+    private func presentCommandBarError(
+        _ text: String,
+        source: CommandInvocationSource,
+        projectContextID: UUID? = nil,
+        workspaceContext: WorkspaceSelection? = nil
+    ) {
+        if source == .shortcut && !commandBar.isPresented {
+            openCommandBar(projectContextID: projectContextID, workspaceContext: workspaceContext)
+        }
+        commandBar.notice = CommandBarNotice(text: text, isError: true)
+        commandBar.mode = .commandList
     }
 
     private func submitTextInputCommand() {

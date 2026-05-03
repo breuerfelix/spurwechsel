@@ -22,7 +22,7 @@ struct CommandPaletteOverlayView: View {
     @State private var searchFieldShouldFocus = false
 
     private var theme: SpurTheme { store.theme }
-    private var filteredCommands: [AppCommand] { store.filteredCommands }
+    private var filteredCommands: [CommandID] { store.filteredCommands }
     private var filteredPickerItems: [CommandBarPickerItem] { store.filteredPickerItems }
 
     var body: some View {
@@ -284,6 +284,7 @@ struct CommandPaletteOverlayView: View {
                         title: command.title,
                         subtitle: command.keywords.joined(separator: "  "),
                         symbolName: command.symbolName,
+                        trailingShortcut: store.shortcutBinding(for: command)?.displayLabel,
                         isSelected: index == store.commandBar.highlightedIndex
                     )
                 }
@@ -332,6 +333,7 @@ struct CommandPaletteOverlayView: View {
                         title: item.title,
                         subtitle: item.subtitle,
                         symbolName: item.symbolName,
+                        trailingShortcut: nil,
                         isSelected: index == store.commandBar.highlightedIndex
                     )
                 }
@@ -348,6 +350,7 @@ struct CommandPaletteOverlayView: View {
         title: String,
         subtitle: String,
         symbolName: String,
+        trailingShortcut: String?,
         isSelected: Bool
     ) -> some View {
         HStack(spacing: 12) {
@@ -367,6 +370,13 @@ struct CommandPaletteOverlayView: View {
             }
 
             Spacer(minLength: 0)
+
+            if let trailingShortcut {
+                shortcutBadge(
+                    trailingShortcut,
+                    isSelected: isSelected
+                )
+            }
         }
         .padding(.horizontal, 16)
         .padding(.vertical, 11)
@@ -378,6 +388,22 @@ struct CommandPaletteOverlayView: View {
         .padding(.vertical, 4)
         .frame(maxWidth: .infinity, alignment: .leading)
         .contentShape(Rectangle())
+    }
+
+    private func shortcutBadge(_ label: String, isSelected: Bool) -> some View {
+        Text(label)
+            .font(.system(size: 11, weight: .semibold, design: .monospaced))
+            .foregroundStyle(isSelected ? theme.foreground : theme.foregroundDim)
+            .padding(.horizontal, 7)
+            .padding(.vertical, 4)
+            .background(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .fill(theme.panelRaised)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 7, style: .continuous)
+                    .stroke(theme.border, lineWidth: 1)
+            )
     }
 
     private func emptyStateText(_ text: String) -> some View {

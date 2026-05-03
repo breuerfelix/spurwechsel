@@ -56,10 +56,12 @@ struct spurwechselApp: App {
         .defaultSize(width: 1560, height: 940)
         .commands {
             CommandMenu("Spurwechsel") {
-                let commandBarShortcut = store.commandBarShortcutBinding
-                let createDefaultAgentShortcut = store.createDefaultAgentShortcutBinding
+                let commandBarShortcut = store.shortcutBinding(for: .toggleCommandBar)
+                    ?? ResolvedShortcutBinding(command: .toggleCommandBar, key: "k", modifiers: [.command])!
+                let createDefaultAgentShortcut = store.shortcutBinding(for: .createDefaultAgent)
+                    ?? ResolvedShortcutBinding(command: .createDefaultAgent, key: "t", modifiers: [.command])!
                 Button("Command Bar") {
-                    store.dispatchShortcutAction(.toggleCommandBar)
+                    store.dispatchShortcutCommand(.toggleCommandBar)
                 }
                 .keyboardShortcut(
                     commandBarShortcut.keyEquivalent,
@@ -67,7 +69,7 @@ struct spurwechselApp: App {
                 )
 
                 Button("Create Default Agent") {
-                    store.dispatchShortcutAction(.createDefaultAgent)
+                    store.dispatchShortcutCommand(.createDefaultAgent)
                 }
                 .keyboardShortcut(
                     createDefaultAgentShortcut.keyEquivalent,

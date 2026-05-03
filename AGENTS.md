@@ -1,6 +1,7 @@
 do not run tests.
 only verify that the app builds.
 do not verify if the app builds when just changing openspec files.
+keep `CHANGELOG.md` current with high-level user-facing changes.
 
 docs start: `docs/quick-links.md`
 docs map:

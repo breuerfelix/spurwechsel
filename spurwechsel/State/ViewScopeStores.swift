@@ -27,7 +27,7 @@ final class CommandPaletteViewStore: ViewScopeStoreBase {
         set { appStore.commandBar = newValue }
     }
 
-    var filteredCommands: [AppCommand] {
+    var filteredCommands: [CommandID] {
         appStore.filteredCommands
     }
 
@@ -39,6 +39,10 @@ final class CommandPaletteViewStore: ViewScopeStoreBase {
         appStore.theme
     }
 
+    func shortcutBinding(for command: CommandID) -> ResolvedShortcutBinding? {
+        appStore.shortcutBinding(for: command)
+    }
+
     func closeCommandBar() {
         appStore.closeCommandBar()
     }
@@ -47,7 +51,7 @@ final class CommandPaletteViewStore: ViewScopeStoreBase {
         appStore.moveHighlightedCommand(offset)
     }
 
-    func executeCommand(_ command: AppCommand, projectContextID: UUID?) {
+    func executeCommand(_ command: CommandID, projectContextID: UUID?) {
         appStore.executeCommand(command, projectContextID: projectContextID)
     }
 

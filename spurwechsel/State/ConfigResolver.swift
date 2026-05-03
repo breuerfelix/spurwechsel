@@ -154,9 +154,14 @@ struct ConfigResolver {
         var records: [ShortcutRecord] = []
 
         for (index, shortcut) in shortcuts.enumerated() {
-            guard let rawAction = shortcut.action?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  let action = ShortcutActionID(rawValue: rawAction) else {
-                diagnostics.append(ConfigDiagnostic("shortcuts[\(index)].action is invalid."))
+            guard let rawCommand = shortcut.command?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !rawCommand.isEmpty else {
+                diagnostics.append(ConfigDiagnostic("shortcuts[\(index)].command is required."))
+                continue
+            }
+
+            guard let command = CommandID(rawValue: rawCommand) else {
+                diagnostics.append(ConfigDiagnostic("shortcuts[\(index)].command is invalid."))
                 continue
             }
 
@@ -169,7 +174,7 @@ struct ConfigResolver {
             let modifiers = resolveShortcutModifiers(shortcut.modifiers, index: index, diagnostics: &diagnostics)
             records.append(
                 ShortcutRecord(
-                    action: action,
+                    command: command,
                     key: rawKey,
                     modifiers: modifiers
                 )
@@ -240,12 +245,12 @@ struct ConfigResolver {
     }
 
     private func deduplicatedShortcuts(_ shortcuts: [ShortcutRecord]) -> [ShortcutRecord] {
-        var recordsByAction: [ShortcutActionID: ShortcutRecord] = [:]
+        var recordsByCommand: [CommandID: ShortcutRecord] = [:]
         for shortcut in shortcuts {
-            recordsByAction[shortcut.action] = shortcut
+            recordsByCommand[shortcut.command] = shortcut
         }
 
-        return ShortcutActionID.allCases.compactMap { recordsByAction[$0] }
+        return CommandID.allCases.compactMap { recordsByCommand[$0] }
     }
 
     private func resolveTheme(_ theme: UserThemeConfig?) -> ConfigDomainResult<ThemeSet> {
@@ -388,11 +393,11 @@ struct ConfigFileNormalizer {
             return nil
         }
 
-        var recordsByAction: [ShortcutActionID: UserShortcutRecord] = [:]
+        var recordsByCommand: [CommandID: UserShortcutRecord] = [:]
 
         for shortcut in shortcuts {
-            guard let rawAction = shortcut.action?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  let action = ShortcutActionID(rawValue: rawAction),
+            guard let rawCommand = shortcut.command?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  let command = CommandID(rawValue: rawCommand),
                   let key = shortcut.key?.trimmingCharacters(in: .whitespacesAndNewlines),
                   !key.isEmpty else {
                 continue
@@ -403,14 +408,14 @@ struct ConfigFileNormalizer {
                 .compactMap(ShortcutModifier.init(rawValue:))
                 .map(\.rawValue)
 
-            recordsByAction[action] = UserShortcutRecord(
-                action: action.rawValue,
+            recordsByCommand[command] = UserShortcutRecord(
+                command: command.rawValue,
                 key: key,
                 modifiers: modifiers
             )
         }
 
-        return ShortcutActionID.allCases.compactMap { recordsByAction[$0] }
+        return CommandID.allCases.compactMap { recordsByCommand[$0] }
     }
 
     private func normalizedTheme(_ theme: UserThemeConfig?) -> UserThemeConfig? {

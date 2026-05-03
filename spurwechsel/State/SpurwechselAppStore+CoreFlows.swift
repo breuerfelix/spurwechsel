@@ -17,6 +17,10 @@ extension SpurwechselAppStore {
         await coordinator.prepareForTermination()
     }
 
+    func requestApplicationQuit() {
+        coordinator.requestApplicationQuit()
+    }
+
     func setApplicationActive(_ isActive: Bool) {
         coordinator.setApplicationActive(isActive)
     }
@@ -86,18 +90,20 @@ extension SpurwechselAppStore {
     var configuredAgents: [AgentConfigRecord] { coordinator.configuredAgents }
     var configuredDefaultAgent: AgentConfigRecord { coordinator.configuredDefaultAgent }
     var configuredShortcuts: [ResolvedShortcutBinding] { coordinator.configuredShortcuts }
-    var commandBarShortcutBinding: ResolvedShortcutBinding { coordinator.commandBarShortcutBinding }
-    var createDefaultAgentShortcutBinding: ResolvedShortcutBinding { coordinator.createDefaultAgentShortcutBinding }
-    var filteredCommands: [AppCommand] { coordinator.filteredCommands }
+    var filteredCommands: [CommandID] { coordinator.filteredCommands }
     var filteredPickerItems: [CommandBarPickerItem] { coordinator.filteredPickerItems }
+
+    func shortcutBinding(for command: CommandID) -> ResolvedShortcutBinding? {
+        coordinator.shortcutBinding(for: command)
+    }
 
     @discardableResult
     func handleGlobalShortcutEvent(_ event: NSEvent) -> Bool {
         coordinator.handleGlobalShortcutEvent(event)
     }
 
-    func dispatchShortcutAction(_ action: ShortcutActionID) {
-        coordinator.dispatchShortcutAction(action)
+    func dispatchShortcutCommand(_ command: CommandID) {
+        coordinator.dispatchShortcutCommand(command)
     }
 
     func send(_ intent: AppIntent) {
@@ -143,7 +149,7 @@ extension SpurwechselAppStore {
     func executeHighlightedCommand() { coordinator.executeHighlightedCommand() }
 
     func executeCommand(
-        _ command: AppCommand,
+        _ command: CommandID,
         projectContextID: UUID? = nil,
         workspaceContext: WorkspaceSelection? = nil
     ) {

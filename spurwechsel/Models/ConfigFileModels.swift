@@ -56,7 +56,7 @@ struct UserConfigFile: Codable, Equatable {
             },
             shortcuts: config.shortcuts.map {
                 UserShortcutRecord(
-                    action: $0.action.rawValue,
+                    command: $0.command.rawValue,
                     key: $0.key,
                     modifiers: $0.modifiers.map(\.rawValue)
                 )
@@ -119,22 +119,22 @@ struct UserAgentConfigRecord: Codable, Equatable, Hashable {
 }
 
 struct UserShortcutRecord: Codable, Equatable, Hashable {
-    var action: String?
+    var command: String?
     var key: String?
     var modifiers: [String]?
 
     init(
-        action: String? = nil,
+        command: String? = nil,
         key: String? = nil,
         modifiers: [String]? = nil
     ) {
-        self.action = action
+        self.command = command
         self.key = key
         self.modifiers = modifiers
     }
 
     init(record: ShortcutRecord) {
-        self.action = record.action.rawValue
+        self.command = record.command.rawValue
         self.key = record.key
         self.modifiers = record.modifiers.map(\.rawValue)
     }

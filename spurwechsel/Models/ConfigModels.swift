@@ -1,10 +1,5 @@
 import Foundation
 
-enum ShortcutActionID: String, CaseIterable, Hashable, Codable {
-    case toggleCommandBar = "toggle-command-bar"
-    case createDefaultAgent = "create-default-agent"
-}
-
 enum ShortcutModifier: String, CaseIterable, Hashable, Codable {
     case command
     case shift
@@ -13,28 +8,28 @@ enum ShortcutModifier: String, CaseIterable, Hashable, Codable {
 }
 
 struct ShortcutRecord: Equatable, Hashable {
-    var action: ShortcutActionID
+    var command: CommandID
     var key: String
     var modifiers: [ShortcutModifier]
 
     init(
-        action: ShortcutActionID,
+        command: CommandID,
         key: String,
         modifiers: [ShortcutModifier]
     ) {
-        self.action = action
+        self.command = command
         self.key = key
         self.modifiers = modifiers
     }
 }
 
 struct ResolvedShortcutBinding: Equatable, Hashable {
-    var action: ShortcutActionID
+    var command: CommandID
     var key: String
     var modifiers: Set<ShortcutModifier>
 
     init?(
-        action: ShortcutActionID,
+        command: CommandID,
         key: String,
         modifiers: Set<ShortcutModifier>
     ) {
@@ -42,14 +37,14 @@ struct ResolvedShortcutBinding: Equatable, Hashable {
         guard normalizedKey.count == 1 else {
             return nil
         }
-        self.action = action
+        self.command = command
         self.key = normalizedKey
         self.modifiers = modifiers
     }
 
     init?(record: ShortcutRecord) {
         self.init(
-            action: record.action,
+            command: record.command,
             key: record.key,
             modifiers: Set(record.modifiers)
         )
@@ -63,10 +58,42 @@ struct ResolvedShortcutBinding: Equatable, Hashable {
         return "\(modifierPart)::\(key)"
     }
 
+    var displayLabel: String {
+        let modifierGlyphs = ShortcutModifier.displayOrder.compactMap { modifier -> String? in
+            guard modifiers.contains(modifier) else {
+                return nil
+            }
+            return modifier.glyph
+        }
+        return modifierGlyphs.joined() + key.uppercased()
+    }
+
     static func normalizeKey(_ rawKey: String) -> String {
         rawKey
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .lowercased()
+    }
+}
+
+private extension ShortcutModifier {
+    static let displayOrder: [ShortcutModifier] = [
+        .command,
+        .shift,
+        .option,
+        .control
+    ]
+
+    var glyph: String {
+        switch self {
+        case .command:
+            return "⌘"
+        case .shift:
+            return "⇧"
+        case .option:
+            return "⌥"
+        case .control:
+            return "⌃"
+        }
     }
 }
 
@@ -300,12 +327,12 @@ struct SpurwechselConfig: Equatable {
     ]
     static let defaultShortcuts: [ShortcutRecord] = [
         ShortcutRecord(
-            action: .toggleCommandBar,
+            command: .toggleCommandBar,
             key: "k",
             modifiers: [.command]
         ),
         ShortcutRecord(
-            action: .createDefaultAgent,
+            command: .createDefaultAgent,
             key: "t",
             modifiers: [.command]
         )
@@ -351,25 +378,25 @@ struct SpurwechselConfig: Equatable {
     }
 
     var resolvedShortcuts: [ResolvedShortcutBinding] {
-        let fallbackByAction = Dictionary(
+        let fallbackByCommand = Dictionary(
             uniqueKeysWithValues: SpurwechselConfig.defaultShortcuts
                 .compactMap { record in
-                    ResolvedShortcutBinding(record: record).map { ($0.action, $0) }
+                    ResolvedShortcutBinding(record: record).map { ($0.command, $0) }
                 }
         )
-        var bindingsByAction = fallbackByAction
+        var bindingsByCommand = fallbackByCommand
 
         for record in shortcuts {
             guard let binding = ResolvedShortcutBinding(record: record) else {
                 continue
             }
-            bindingsByAction[binding.action] = binding
+            bindingsByCommand[binding.command] = binding
         }
 
         var consumedSignatures = Set<String>()
         var resolved: [ResolvedShortcutBinding] = []
-        for action in ShortcutActionID.allCases {
-            guard let binding = bindingsByAction[action] else {
+        for command in CommandID.allCases {
+            guard let binding = bindingsByCommand[command] else {
                 continue
             }
             guard !consumedSignatures.contains(binding.signature) else {
@@ -382,7 +409,7 @@ struct SpurwechselConfig: Equatable {
         return resolved
     }
 
-    func shortcutBinding(for action: ShortcutActionID) -> ResolvedShortcutBinding? {
-        resolvedShortcuts.first(where: { $0.action == action })
+    func shortcutBinding(for command: CommandID) -> ResolvedShortcutBinding? {
+        resolvedShortcuts.first(where: { $0.command == command })
     }
 }

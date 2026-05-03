@@ -28,12 +28,44 @@ Planned:
 - task buttons, execute custom commands like `npm install` or complex ones that generate commit messages and commit changes
 - integrate agents like `claude`, `opencode` deeper so the left side panel can show which agent needs input or is currently working
 
+## Commands
+
+<details>
+<summary>Available commands</summary>
+
+Command palette and shortcuts use same `Command ID`. In config, bind shortcuts with `shortcuts[].command`.
+
+| Command | Command ID |
+| --- | --- |
+| Toggle Command Bar | `toggle-command-bar` |
+| Add New Project | `add-new-project` |
+| Add Worktree | `add-worktree` |
+| Delete Worktree | `delete-worktree` |
+| Select Project | `select-project` |
+| Select Next Project | `select-next-project` |
+| Select Previous Project | `select-previous-project` |
+| Create Agent | `create-agent` |
+| Create Default Agent | `create-default-agent` |
+| Delete Agent | `delete-agent` |
+| Select Previous Agent | `select-previous-agent` |
+| Select Next Agent | `select-next-agent` |
+| Open Terminal View | `open-terminal-view` |
+| Open VSCode View | `open-vscode-view` |
+| Open Agent View | `open-agent-view` |
+| Toggle Preview Pane | `toggle-preview-pane` |
+| Toggle Right Sidebar | `toggle-right-sidebar` |
+| Toggle Left Sidebar | `toggle-left-sidebar` |
+| Quit | `quit` |
+
+</details>
+
 ## Config
 
 Config file path:
 
 - `~/.spurwechsel/config.yaml`
 - override with `SPURWECHSEL_CONFIG_PATH`
+- spurwechsel also manages `~/.spurwechsel/AGENTS.md` (same folder as config) with AI-agent editing instructions for supported `config.yaml` fields
 
 Default config values:
 
@@ -59,10 +91,10 @@ agents:
     command: codex
 
 shortcuts:
-  - action: toggle-command-bar
+  - command: toggle-command-bar
     key: k
     modifiers: [command]
-  - action: create-default-agent
+  - command: create-default-agent
     key: t
     modifiers: [command]
 

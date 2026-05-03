@@ -11,6 +11,15 @@ Override path:
 
 Loader entry point: `spurwechsel/State/ProjectConfigStore.swift`.
 
+## Managed Companion File
+Spurwechsel manages a sibling `AGENTS.md` next to `config.yaml`.
+
+- default: `~/.spurwechsel/AGENTS.md`
+- with override: sibling of `SPURWECHSEL_CONFIG_PATH`
+
+`AGENTS.md` contains concise instructions for AI agents on what they may configure in `config.yaml`.
+File is app-owned and rewritten when missing or stale (for example after app updates or config saves).
+
 ## Config Domains
 - `version`
 - `codeServer`
@@ -55,16 +64,13 @@ If no valid agents remain after filtering, app falls back to built-ins:
 ## Shortcut Records
 Each shortcut stores:
 
-- `action`
+- `command`
 - `key`
 - `modifiers`
 
-Supported actions today:
+`command` accepts any command ID from command registry (`toggle-command-bar`, `create-agent`, `open-vscode-view`, etc).
 
-- `toggle-command-bar`
-- `create-default-agent`
-
-Resolver enforces one binding per action and removes signature collisions.
+Resolver enforces one binding per command and removes signature collisions.
 
 ## Theme Records
 Theme config may override any subset of light or dark palette tokens. Missing values inherit from defaults.
@@ -76,6 +82,6 @@ Common causes:
 
 - bad YAML
 - missing required project or agent fields
-- invalid shortcut action or modifier
+- invalid shortcut command or modifier
 - invalid `codeServer.port`
 - invalid theme token values
