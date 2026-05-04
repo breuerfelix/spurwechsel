@@ -13,6 +13,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 - Default built-in agent config now marks `opencode` as default instead of `claude`.
 - Removing project now closes and cleans project/worktree resources: agent sessions, workspace terminals, VSCode webviews, surface tabs, and cached editor session state.
 
+### Fixed
+- Adding folder that is not a git repository now shows command palette error notice instead of failing silently; mixed selections still import valid repos and report skipped non-repo folders.
+
 ## [0.2.0] - 2026-05-03
 
 ### Added

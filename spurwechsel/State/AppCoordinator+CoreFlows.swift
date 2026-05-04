@@ -692,21 +692,24 @@ extension AppCoordinator {
             return 0
         }
 
-        let validRecords = newRecords.filter { record in
+        var validRecords: [ProjectRecord] = []
+        var invalidRepositoryRecords: [ProjectRecord] = []
+        for record in newRecords {
             do {
                 _ = try gitService.repositorySnapshot(at: URL(fileURLWithPath: record.path))
                 Self.logger.debug("Import validation passed for git repo: \(record.path, privacy: .public)")
-                return true
+                validRecords.append(record)
             } catch {
                 Self.logger.error("Import validation failed for path \(record.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
                 print("Spurwechsel import validation failed for \(record.path): \(error.localizedDescription)")
-                return false
+                invalidRepositoryRecords.append(record)
             }
         }
 
         guard !validRecords.isEmpty else {
             Self.logger.error("Import aborted. All selected folders failed git repository validation.")
             print("Spurwechsel import aborted: all selected folders failed git repository validation.")
+            presentImportValidationNotice(for: invalidRepositoryRecords, importedCount: 0)
             return 0
         }
 
@@ -730,8 +733,59 @@ extension AppCoordinator {
         layout.showsRightSidebar = true
         layout.showsLeftSidebar = true
         selectOrCreateAgentTab(for: projects.selection)
+
+        if !invalidRepositoryRecords.isEmpty {
+            presentImportValidationNotice(for: invalidRepositoryRecords, importedCount: validRecords.count)
+        }
+
         Self.logger.debug("Import completed. Added \(validRecords.count, privacy: .public) project(s).")
         return validRecords.count
+    }
+
+    private func presentImportValidationNotice(
+        for invalidRecords: [ProjectRecord],
+        importedCount: Int
+    ) {
+        guard !invalidRecords.isEmpty else {
+            return
+        }
+
+        let nonRepositoryNames = invalidRepositoryDisplayNames(for: invalidRecords)
+        let noun = invalidRecords.count == 1 ? "folder" : "folders"
+        let importMessage: String
+        if importedCount > 0 {
+            let projectNoun = importedCount == 1 ? "project" : "projects"
+            importMessage = "Added \(importedCount) \(projectNoun). "
+        } else {
+            importMessage = "Cannot add \(invalidRecords.count) \(noun). "
+        }
+        let namesMessage = nonRepositoryNames.joined(separator: ", ")
+        let repositoryNoun = invalidRecords.count == 1 ? "repository" : "repositories"
+        let message = "\(importMessage)\(invalidRecords.count == 1 ? "Folder is" : "Folders are") not Git \(repositoryNoun) and could not be added (\(namesMessage))."
+        Self.logger.error("Import rejected non-repository \(noun): \(namesMessage, privacy: .public)")
+
+        openCommandBar()
+        commandBar.mode = .commandList
+        commandBar.notice = CommandBarNotice(
+            text: message,
+            isError: true
+        )
+        commandBar.workspaceContext = nil
+    }
+
+    private func invalidRepositoryDisplayNames(for records: [ProjectRecord]) -> [String] {
+        let names = records.map { URL(fileURLWithPath: $0.path).lastPathComponent }
+        var nameCounts: [String: Int] = [:]
+        for name in names {
+            nameCounts[name, default: 0] += 1
+        }
+
+        return zip(records, names).map { record, name in
+            if nameCounts[name, default: 0] > 1 {
+                return record.path
+            }
+            return name
+        }
     }
 
     private func beginAddWorktreeFlow(

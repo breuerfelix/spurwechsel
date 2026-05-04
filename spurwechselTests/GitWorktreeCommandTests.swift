@@ -573,6 +573,63 @@ final class GitWorktreeCommandTests: XCTestCase {
         XCTAssertTrue(store.commandBar.notice?.isError == true)
     }
 
+    @MainActor
+    func testImportNonRepositoryFolderShowsErrorNotice() throws {
+        let invalidDirectory = temporaryDirectoryURL.appendingPathComponent("not-a-repo", isDirectory: true)
+        try FileManager.default.createDirectory(at: invalidDirectory, withIntermediateDirectories: true)
+
+        let configStore = ProjectConfigStore(configURL: temporaryDirectoryURL.appendingPathComponent("config.yaml"))
+        let store = SpurwechselStore(
+            configStore: configStore,
+            gitService: MockGitRepositoryService()
+        )
+
+        let importedCount = store.importProjects(from: [invalidDirectory])
+
+        XCTAssertEqual(importedCount, 0)
+        XCTAssertTrue(store.commandBar.isPresented)
+        XCTAssertTrue(store.commandBar.notice?.isError == true)
+        XCTAssertTrue(store.commandBar.notice?.text.contains("not Git repository") == true)
+        XCTAssertTrue(store.commandBar.notice?.text.contains("not-a-repo") == true)
+        XCTAssertTrue(store.projects.projects.isEmpty)
+    }
+
+    @MainActor
+    func testImportMixedRepositoriesImportsValidAndWarnsInvalid() throws {
+        let validDirectory = temporaryDirectoryURL.appendingPathComponent("repo", isDirectory: true)
+        let invalidDirectory = temporaryDirectoryURL.appendingPathComponent("plain-folder", isDirectory: true)
+        try FileManager.default.createDirectory(at: validDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: invalidDirectory, withIntermediateDirectories: true)
+
+        let validSnapshot = GitRepositorySnapshot(
+            repositoryRootPath: validDirectory.path,
+            currentBranch: "main",
+            worktrees: [
+                GitWorktreeSnapshot(
+                    name: "repo",
+                    path: validDirectory.path,
+                    branch: "main",
+                    isPrimary: true
+                )
+            ]
+        )
+        let configStore = ProjectConfigStore(configURL: temporaryDirectoryURL.appendingPathComponent("config.yaml"))
+        let store = SpurwechselStore(
+            configStore: configStore,
+            gitService: MockGitRepositoryService(snapshots: [validDirectory.path: validSnapshot])
+        )
+
+        let importedCount = store.importProjects(from: [validDirectory, invalidDirectory])
+
+        XCTAssertEqual(importedCount, 1)
+        XCTAssertEqual(store.projects.projects.count, 1)
+        XCTAssertEqual(store.projects.projects.first?.path, validDirectory.path)
+        XCTAssertTrue(store.commandBar.isPresented)
+        XCTAssertTrue(store.commandBar.notice?.isError == true)
+        XCTAssertTrue(store.commandBar.notice?.text.contains("Added 1 project.") == true)
+        XCTAssertTrue(store.commandBar.notice?.text.contains("plain-folder") == true)
+    }
+
     private func createGitRepository(named name: String) throws -> URL {
         let repositoryURL = temporaryDirectoryURL.appendingPathComponent(name, isDirectory: true)
         try FileManager.default.createDirectory(at: repositoryURL, withIntermediateDirectories: true)
