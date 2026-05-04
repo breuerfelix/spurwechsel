@@ -211,7 +211,7 @@ struct ProjectConfigStore {
         ## Important rules
 
         - `projects` store repository roots only. Worktrees are discovered from git.
-        - If no valid agents remain, Spurwechsel falls back to built-ins (`claude`, `opencode`, `codex`).
+        - If no valid agents remain, Spurwechsel falls back to built-ins (`opencode`, `claude`, `codex`).
         - `shortcuts[].modifiers` supports only: `command`, `shift`, `option`, `control`.
         - Invalid values trigger diagnostics and fallback values.
 
@@ -233,9 +233,11 @@ struct ProjectConfigStore {
           - path: "/Users/me/code/project"
             name: "Project"
         agents:
+          - name: opencode
+            command: opencode
+            default: true
           - name: claude
             command: claude
-            default: true
           - name: codex
             command: codex
         shortcuts:

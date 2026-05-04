@@ -10,6 +10,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 - New `remove-project` command with confirmation to remove current project from Spurwechsel config without deleting files on disk.
 
 ### Changed
+- Default built-in agent config now marks `opencode` as default instead of `claude`.
 - Removing project now closes and cleans project/worktree resources: agent sessions, workspace terminals, VSCode webviews, surface tabs, and cached editor session state.
 
 ## [0.2.0] - 2026-05-03

@@ -177,7 +177,7 @@ final class spurwechselUITests: XCTestCase {
         searchField.typeText("create default agent")
         app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
 
-        XCTAssertTrue(app.buttons["agents.session.claude-1"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["agents.session.opencode-1"].waitForExistence(timeout: 2))
         XCTAssertFalse(app.textFields["commandbar.search"].exists)
     }
 
@@ -265,7 +265,7 @@ final class spurwechselUITests: XCTestCase {
         XCTAssertTrue(pickerField.waitForExistence(timeout: 2))
         app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
 
-        XCTAssertTrue(app.buttons["agents.session.claude-1"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["agents.session.opencode-1"].waitForExistence(timeout: 2))
     }
 
     func testDeleteAgentConfirmationCancelsWithEscapeKey() throws {
@@ -283,7 +283,7 @@ final class spurwechselUITests: XCTestCase {
         let pickerField = app.textFields["commandbar.search"]
         XCTAssertTrue(pickerField.waitForExistence(timeout: 2))
         app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
-        XCTAssertTrue(app.buttons["agents.session.claude-1"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["agents.session.opencode-1"].waitForExistence(timeout: 2))
 
         app.typeKey("k", modifierFlags: [.command])
         let searchField = app.textFields["commandbar.search"]
@@ -296,7 +296,7 @@ final class spurwechselUITests: XCTestCase {
         app.typeKey(XCUIKeyboardKey.escape, modifierFlags: [])
 
         XCTAssertFalse(app.buttons["commandbar.confirm"].waitForExistence(timeout: 1))
-        XCTAssertTrue(app.buttons["agents.session.claude-1"].exists)
+        XCTAssertTrue(app.buttons["agents.session.opencode-1"].exists)
     }
 
     func testSwitchingAgentRowsUpdatesMainSessionHeader() throws {
@@ -314,7 +314,7 @@ final class spurwechselUITests: XCTestCase {
         let pickerField = app.textFields["commandbar.search"]
         XCTAssertTrue(pickerField.waitForExistence(timeout: 2))
         app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
-        XCTAssertTrue(app.buttons["agents.session.claude-1"].waitForExistence(timeout: 2))
+        XCTAssertTrue(app.buttons["agents.session.opencode-1"].waitForExistence(timeout: 2))
 
         addAgentButton.tap()
         XCTAssertTrue(pickerField.waitForExistence(timeout: 2))
@@ -327,8 +327,8 @@ final class spurwechselUITests: XCTestCase {
         XCTAssertTrue(headerName.waitForExistence(timeout: 2))
         XCTAssertEqual(headerName.label, "codex-2")
 
-        app.buttons["agents.session.claude-1"].tap()
-        XCTAssertEqual(headerName.label, "claude-1")
+        app.buttons["agents.session.opencode-1"].tap()
+        XCTAssertEqual(headerName.label, "opencode-1")
 
         app.buttons["agents.session.codex-2"].tap()
         XCTAssertEqual(headerName.label, "codex-2")

@@ -80,13 +80,11 @@ projects:
     name: "Insane Tool"
 
 agents:
-  - name: claude
-    command: claude
-    default: true
-  # when using opencode I recommend setting the theme to 'system' with /theme
-  # it feels like opencode is baked in the app with that theme
   - name: opencode
     command: opencode
+    default: true
+  - name: claude
+    command: claude
   - name: codex
     command: codex
 

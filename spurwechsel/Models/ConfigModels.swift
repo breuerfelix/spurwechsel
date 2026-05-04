@@ -321,8 +321,8 @@ struct ThemeSet: Equatable, Hashable {
 struct SpurwechselConfig: Equatable {
     static let currentVersion = 1
     static let defaultAgents: [AgentConfigRecord] = [
-        AgentConfigRecord(name: "claude", command: "claude", isDefault: true),
-        AgentConfigRecord(name: "opencode", command: "opencode"),
+        AgentConfigRecord(name: "opencode", command: "opencode", isDefault: true),
+        AgentConfigRecord(name: "claude", command: "claude"),
         AgentConfigRecord(name: "codex", command: "codex")
     ]
     static let defaultShortcuts: [ShortcutRecord] = [

@@ -36,8 +36,8 @@ final class ProjectConfigStoreTests: XCTestCase {
         XCTAssertEqual(loadedConfig.projects, initialConfig.projects)
         XCTAssertEqual(loadedConfig.agents, initialConfig.agents)
         XCTAssertEqual(loadedConfig.shortcuts, initialConfig.shortcuts)
-        XCTAssertEqual(loadedConfig.resolvedAgents.map(\.displayName), ["claude", "opencode", "codex"])
-        XCTAssertEqual(loadedConfig.resolvedDefaultAgent.displayName, "claude")
+        XCTAssertEqual(loadedConfig.resolvedAgents.map(\.displayName), ["opencode", "claude", "codex"])
+        XCTAssertEqual(loadedConfig.resolvedDefaultAgent.displayName, "opencode")
         XCTAssertEqual(loadedConfig.resolvedShortcuts.count, 1)
         XCTAssertEqual(
             loadedConfig.resolvedShortcuts.first?.command,
@@ -470,7 +470,7 @@ final class ProjectConfigStoreTests: XCTestCase {
         XCTAssertTrue(loadResult.diagnostics.contains {
             $0.message.contains("agents[0].command is required")
         })
-        XCTAssertEqual(loadResult.config.resolvedDefaultAgent.displayName, "claude")
+        XCTAssertEqual(loadResult.config.resolvedDefaultAgent.displayName, "opencode")
     }
 
     func testLoadResultWithUnsupportedShortcutModifierReportsDiagnosticAndDropsUnsupportedModifier() throws {

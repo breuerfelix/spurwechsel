@@ -57,8 +57,8 @@ Each agent record stores:
 
 If no valid agents remain after filtering, app falls back to built-ins:
 
-- `claude`
 - `opencode`
+- `claude`
 - `codex`
 
 ## Shortcut Records
