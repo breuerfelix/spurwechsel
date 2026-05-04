@@ -688,6 +688,18 @@ final class SpurwechselStateTests: XCTestCase {
     }
 
     @MainActor
+    func testRemoveProjectCommandAppearsInCommandPaletteSearch() {
+        let store = SpurwechselStore()
+
+        store.openCommandBar()
+        XCTAssertTrue(store.filteredCommands.contains(.removeProject))
+
+        store.updateCommandQuery("remove project")
+
+        XCTAssertTrue(store.filteredCommands.contains(.removeProject))
+    }
+
+    @MainActor
     func testQuitCommandClosesCommandBarAndInvokesQuitHandler() {
         final class QuitSpy {
             var callCount = 0

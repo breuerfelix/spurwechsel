@@ -137,6 +137,7 @@ enum ThemeMode: String, CaseIterable, Hashable {
 enum CommandID: String, CaseIterable, Hashable, Codable {
     case toggleCommandBar = "toggle-command-bar"
     case addProject = "add-new-project"
+    case removeProject = "remove-project"
     case addWorktree = "add-worktree"
     case deleteWorktree = "delete-worktree"
     case selectProject = "select-project"
@@ -161,6 +162,8 @@ enum CommandID: String, CaseIterable, Hashable, Codable {
             return "Toggle Command Bar"
         case .addProject:
             return "Add New Project"
+        case .removeProject:
+            return "Remove Project"
         case .addWorktree:
             return "Add Worktree"
         case .deleteWorktree:
@@ -204,6 +207,8 @@ enum CommandID: String, CaseIterable, Hashable, Codable {
             return "magnifyingglass"
         case .addProject:
             return "folder.badge.plus"
+        case .removeProject:
+            return "folder.badge.minus"
         case .addWorktree, .deleteWorktree:
             return "point.3.filled.connected.trianglepath.dotted"
         case .selectProject, .selectNextProject, .selectPreviousProject:
@@ -231,6 +236,8 @@ enum CommandID: String, CaseIterable, Hashable, Codable {
             return ["command", "palette", "bar", "search", "toggle"]
         case .addProject:
             return ["new", "project", "folder", "import", "workspace"]
+        case .removeProject:
+            return ["remove", "delete", "project", "workspace", "forget"]
         case .addWorktree:
             return ["worktree", "branch", "create", "new", "project"]
         case .deleteWorktree:
@@ -310,6 +317,7 @@ struct CommandBarTextPrompt: Equatable {
 enum CommandBarConfirmationAction: Equatable {
     case deleteWorktree(projectID: UUID, worktreeID: UUID)
     case deleteAgent(sessionID: UUID)
+    case removeProject(projectID: UUID)
 }
 
 struct CommandBarConfirmationPrompt: Equatable {

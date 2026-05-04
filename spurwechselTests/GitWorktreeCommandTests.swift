@@ -88,6 +88,32 @@ final class GitWorktreeCommandTests: XCTestCase {
     }
 
     @MainActor
+    func testRemoveProjectFromWorktreeSelectionTargetsParentProject() {
+        let worktree = Worktree(name: "feature-a", branch: "feature-a", path: "/tmp/repo-feature")
+        let project = Project(name: "Repo", branch: "main", path: "/tmp/repo", worktrees: [worktree])
+        let state = ProjectsState.fromImportedProjects([project])
+        let store = SpurwechselStore(
+            projects: state,
+            gitService: MockGitRepositoryService()
+        )
+
+        store.selectWorkspace(.worktree(worktree.id))
+        store.openCommandBar()
+        store.executeCommand(.removeProject)
+
+        guard case let .confirmation(prompt) = store.commandBar.mode else {
+            return XCTFail("Expected confirmation mode")
+        }
+
+        switch prompt.action {
+        case let .removeProject(projectID):
+            XCTAssertEqual(projectID, project.id)
+        default:
+            XCTFail("Expected remove-project confirmation action")
+        }
+    }
+
+    @MainActor
     func testCreateAgentCommandTransitionsToPicker() {
         let project = Project(name: "Repo", branch: "main", path: "/tmp/repo")
         let state = ProjectsState.fromImportedProjects([project])
@@ -229,6 +255,144 @@ final class GitWorktreeCommandTests: XCTestCase {
         XCTAssertNil(store.vscodeWebRuntime(forWorkspaceID: deletedSelection.stableID))
         XCTAssertFalse(store.vscodeMountedWorkspaceIDs.contains(deletedSelection.stableID))
         XCTAssertFalse(store.surfaceTabs.tabs.contains(where: { $0.workspaceSelection == deletedSelection }))
+    }
+
+    @MainActor
+    func testRemoveProjectCleansResourcesAndRemovesConfigRecord() throws {
+        let projectAPath = temporaryDirectoryURL.appendingPathComponent("repo-a", isDirectory: true).path
+        let projectAWorktreePath = temporaryDirectoryURL
+            .appendingPathComponent("worktrees", isDirectory: true)
+            .appendingPathComponent("feature-a", isDirectory: true)
+            .path
+        let projectBPath = temporaryDirectoryURL.appendingPathComponent("repo-b", isDirectory: true).path
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        try configStore.save(
+            UserConfigFile.explicit(from: SpurwechselConfig(
+                projects: [
+                    ProjectRecord(path: projectAPath, name: "Repo A"),
+                    ProjectRecord(path: projectBPath, name: "Repo B")
+                ]
+            ))
+        )
+
+        let snapshots: [String: GitRepositorySnapshot] = [
+            projectAPath: GitRepositorySnapshot(
+                repositoryRootPath: projectAPath,
+                currentBranch: "main",
+                worktrees: [
+                    GitWorktreeSnapshot(name: "repo-a", path: projectAPath, branch: "main", isPrimary: true),
+                    GitWorktreeSnapshot(name: "feature-a", path: projectAWorktreePath, branch: "feature-a", isPrimary: false)
+                ]
+            ),
+            projectBPath: GitRepositorySnapshot(
+                repositoryRootPath: projectBPath,
+                currentBranch: "main",
+                worktrees: [
+                    GitWorktreeSnapshot(name: "repo-b", path: projectBPath, branch: "main", isPrimary: true)
+                ]
+            )
+        ]
+        let store = SpurwechselStore(
+            configStore: configStore,
+            gitService: MockGitRepositoryService(snapshots: snapshots)
+        )
+        guard let projectA = store.projects.projects.first(where: { $0.path == projectAPath }),
+              let projectB = store.projects.projects.first(where: { $0.path == projectBPath }),
+              let projectAWorktree = projectA.worktrees.first
+        else {
+            return XCTFail("Expected two projects with one worktree on project A")
+        }
+
+        let removedProjectSelection = WorkspaceSelection.project(projectA.id)
+        let removedWorktreeSelection = WorkspaceSelection.worktree(projectAWorktree.id)
+        let survivingSelection = WorkspaceSelection.project(projectB.id)
+
+        let removedProjectAgent = AgentSession(
+            workspaceSelection: removedProjectSelection,
+            name: "remove-project-agent",
+            status: .running,
+            launcherName: "codex",
+            launchCommand: "codex",
+            workingDirectory: projectA.path,
+            terminalTitle: "codex",
+            lastActivity: "now",
+            exitCode: nil
+        )
+        let removedWorktreeAgent = AgentSession(
+            workspaceSelection: removedWorktreeSelection,
+            name: "remove-worktree-agent",
+            status: .running,
+            launcherName: "codex",
+            launchCommand: "codex",
+            workingDirectory: projectAWorktree.path,
+            terminalTitle: "codex",
+            lastActivity: "now",
+            exitCode: nil
+        )
+        let survivingAgent = AgentSession(
+            workspaceSelection: survivingSelection,
+            name: "survive-agent",
+            status: .running,
+            launcherName: "codex",
+            launchCommand: "codex",
+            workingDirectory: projectB.path,
+            terminalTitle: "codex",
+            lastActivity: "now",
+            exitCode: nil
+        )
+        store.agents.sessions = [removedProjectAgent, removedWorktreeAgent, survivingAgent]
+        store.agents.selectedSessionID = removedWorktreeAgent.id
+
+        _ = store.projectTerminalController(for: removedProjectSelection)
+        _ = store.projectTerminalController(for: removedWorktreeSelection)
+        _ = store.projectTerminalController(for: survivingSelection)
+
+        store.selectWorkspace(removedProjectSelection)
+        store.selectMainView(.vscode)
+        XCTAssertNotNil(store.vscodeWebRuntime(forWorkspaceID: removedProjectSelection.stableID))
+
+        store.selectWorkspace(removedWorktreeSelection)
+        store.selectMainView(.vscode)
+        XCTAssertNotNil(store.vscodeWebRuntime(forWorkspaceID: removedWorktreeSelection.stableID))
+
+        store.selectMainView(.agent)
+
+        store.openCommandBar(projectContextID: projectA.id)
+        store.executeCommand(.removeProject, projectContextID: projectA.id)
+        guard case let .confirmation(prompt) = store.commandBar.mode else {
+            return XCTFail("Expected confirmation mode")
+        }
+        switch prompt.action {
+        case let .removeProject(projectID):
+            XCTAssertEqual(projectID, projectA.id)
+        default:
+            XCTFail("Expected remove-project action")
+        }
+
+        store.confirmCommandBarAction()
+
+        XCTAssertFalse(store.commandBar.isPresented)
+        XCTAssertEqual(store.projects.projects.count, 1)
+        XCTAssertEqual(store.projects.projects.first?.id, projectB.id)
+        XCTAssertEqual(store.projects.selection, survivingSelection)
+        XCTAssertFalse(store.agents.sessions.contains(where: { $0.id == removedProjectAgent.id }))
+        XCTAssertFalse(store.agents.sessions.contains(where: { $0.id == removedWorktreeAgent.id }))
+        XCTAssertTrue(store.agents.sessions.contains(where: { $0.id == survivingAgent.id }))
+        XCTAssertNil(store.vscodeWebRuntime(forWorkspaceID: removedProjectSelection.stableID))
+        XCTAssertNil(store.vscodeWebRuntime(forWorkspaceID: removedWorktreeSelection.stableID))
+        XCTAssertFalse(store.vscodeMountedWorkspaceIDs.contains(removedProjectSelection.stableID))
+        XCTAssertFalse(store.vscodeMountedWorkspaceIDs.contains(removedWorktreeSelection.stableID))
+        XCTAssertFalse(store.surfaceTabs.tabs.contains(where: { $0.workspaceSelection == removedProjectSelection }))
+        XCTAssertFalse(store.surfaceTabs.tabs.contains(where: { $0.workspaceSelection == removedWorktreeSelection }))
+        XCTAssertNil(store.projectTerminalController(for: removedProjectSelection))
+        XCTAssertNil(store.projectTerminalController(for: removedWorktreeSelection))
+        XCTAssertEqual(store.vscodeServer.status, .missingWorkspace)
+        XCTAssertNil(store.vscodeServer.workspaceSelectionID)
+
+        let savedConfig = try configStore.load()
+        XCTAssertEqual(savedConfig.projects.count, 1)
+        XCTAssertEqual(savedConfig.projects.first?.path, projectBPath)
     }
 
     @MainActor

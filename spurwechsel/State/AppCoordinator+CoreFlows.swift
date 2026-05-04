@@ -484,6 +484,12 @@ extension AppCoordinator {
         case .addProject:
             closeCommandBar(restorePreviousFocus: false)
             presentProjectImportPicker()
+        case .removeProject:
+            beginRemoveProjectFlow(
+                projectContextID: projectContextID ?? commandBar.projectContextID,
+                source: source,
+                workspaceContext: workspaceContext ?? commandBar.workspaceContext
+            )
         case .addWorktree:
             beginAddWorktreeFlow(
                 projectContextID: projectContextID,
@@ -602,6 +608,8 @@ extension AppCoordinator {
         case let .deleteAgent(sessionID):
             deleteAgent(sessionID: sessionID)
             closeCommandBar(restorePreviousFocus: false)
+        case let .removeProject(projectID):
+            removeProject(projectID: projectID)
         }
     }
 
@@ -758,6 +766,37 @@ extension AppCoordinator {
         commandBar.resetQuery()
     }
 
+    private func beginRemoveProjectFlow(
+        projectContextID: UUID?,
+        source: CommandInvocationSource,
+        workspaceContext: WorkspaceSelection?
+    ) {
+        guard let resolvedProjectID = resolveProjectContextID(preferred: projectContextID),
+              let project = projects.project(id: resolvedProjectID)
+        else {
+            presentCommandBarError(
+                "Select project first, then run Remove Project.",
+                source: source,
+                projectContextID: projectContextID,
+                workspaceContext: workspaceContext
+            )
+            return
+        }
+
+        commandBar.isPresented = true
+        commandBar.projectContextID = resolvedProjectID
+        commandBar.mode = .confirmation(
+            CommandBarConfirmationPrompt(
+                title: "Remove Project",
+                message: "Remove project '\(project.name)' from config and close related sessions? Files stay on disk.",
+                confirmTitle: "Remove Project",
+                action: .removeProject(projectID: resolvedProjectID)
+            )
+        )
+        commandBar.notice = nil
+        commandBar.resetQuery()
+    }
+
     private func beginDeleteWorktreeFlow(
         source: CommandInvocationSource,
         workspaceContext: WorkspaceSelection?
@@ -793,6 +832,52 @@ extension AppCoordinator {
         )
         commandBar.notice = nil
         commandBar.resetQuery()
+    }
+
+    private func removeProject(projectID: UUID) {
+        guard let project = projects.project(id: projectID) else {
+            commandBar.notice = CommandBarNotice(
+                text: "Project no longer available.",
+                isError: true
+            )
+            return
+        }
+
+        let removedSelections = workspaceSelections(in: project)
+        let removedSelectionSet = Set(removedSelections)
+        let removedWorkspaceIDs = Set(removedSelections.map(\.stableID))
+        let normalizedProjectPath = normalizePath(project.path)
+        let previousProjectConfig = projectConfig
+        let previousFileConfig = fileConfig
+        let preservedMainView = layout.selectedMainView
+
+        projectConfig.projects.removeAll {
+            normalizePath($0.path) == normalizedProjectPath
+        }
+
+        if let writeError = trySaveConfig() {
+            projectConfig = previousProjectConfig
+            fileConfig = previousFileConfig
+            commandBar.notice = CommandBarNotice(
+                text: writeError.localizedDescription,
+                isError: true
+            )
+            return
+        }
+
+        clearVSCodeStateIfWorkspaceRemoved(removedWorkspaceIDs)
+        cleanupResourcesForRemovedSelections(removedSelectionSet)
+        editorSessionsByWorkspaceID = editorSessionsByWorkspaceID.filter { key, _ in
+            !removedWorkspaceIDs.contains(key)
+        }
+        if let selectedEditorWorkspaceID,
+           removedWorkspaceIDs.contains(selectedEditorWorkspaceID) {
+            self.selectedEditorWorkspaceID = nil
+        }
+
+        refreshProjectsFromConfig()
+        selectSurfaceForMainView(preservedMainView, selection: projects.selection)
+        closeCommandBar(restorePreviousFocus: false)
     }
 
     private func beginSelectProjectFlow() {
@@ -1787,6 +1872,29 @@ extension AppCoordinator {
         }
     }
 
+    private func workspaceSelections(in project: Project) -> [WorkspaceSelection] {
+        [.project(project.id)] + project.worktrees.map { .worktree($0.id) }
+    }
+
+    private func clearVSCodeStateIfWorkspaceRemoved(_ removedWorkspaceIDs: Set<String>) {
+        guard let workspaceID = vscodeServer.workspaceSelectionID,
+              removedWorkspaceIDs.contains(workspaceID)
+        else {
+            return
+        }
+
+        vscodeServerRuntime.stop()
+        vscodeServer.workspaceSelectionID = nil
+        vscodeServer.workspaceName = nil
+        vscodeServer.workspacePath = nil
+        vscodeServer.serverAddress = nil
+        vscodeServer.workspaceAddress = nil
+        vscodeServer.status = .missingWorkspace
+        vscodeServer.statusMessage = "Select project or worktree before starting code-server."
+        vscodeServer.errorMessage = "No workspace path available for VSCode view."
+        vscodeServer.lastOutputLine = nil
+    }
+
     private func cleanupResourcesForDeletedWorkspace(_ selection: WorkspaceSelection) {
         let workspaceID = selection.stableID
 
@@ -1802,6 +1910,12 @@ extension AppCoordinator {
             case .agentSession:
                 return false
             }
+        }
+    }
+
+    private func cleanupResourcesForRemovedSelections(_ selections: Set<WorkspaceSelection>) {
+        for selection in selections {
+            cleanupResourcesForDeletedWorkspace(selection)
         }
     }
 
