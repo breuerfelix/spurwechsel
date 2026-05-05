@@ -73,3 +73,4 @@ project_b64="$(base64url "$project_root")"
 deep_link="spurwechsel://open-workspace?workspace_b64=${workspace_b64}&project_b64=${project_b64}"
 
 open "$deep_link"
+open -b dev.breuer.spurwechsel
