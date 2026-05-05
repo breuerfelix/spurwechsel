@@ -8,6 +8,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 
 ### Changed
 - Updated bundled `libghostty-spm` package to latest upstream snapshot and kept Spurwechsel terminal lifecycle integration needed for managed session shutdown.
+- Release archive pipeline now validates bundled CLI script presence and executable permissions before packaging and upload.
+- Release builds now set app bundle `MARKETING_VERSION` and `CURRENT_PROJECT_VERSION` from tag version, avoiding static `1.0` bundle metadata across releases.
+- Homebrew cask now disables `auto_updates` to ensure standard `brew upgrade` can move users to new tagged app payloads that include bundled CLI script updates.
 
 ## [0.3.0] - 2026-05-05
 

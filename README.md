@@ -17,6 +17,12 @@ sudo xattr -r -d com.apple.quarantine /Applications/Spurwechsel.app
 # spur .
 ```
 
+If you installed older cask release before CLI script was bundled, reinstall once:
+
+```sh
+brew reinstall --cask breuerfelix/tap/spurwechsel
+```
+
 Homebrew tap should expose CLI by linking bundled app resource:
 - `#{appdir}/Spurwechsel.app/Contents/Resources/spurwechsel-cli.sh` -> `spurwechsel`
 - `#{appdir}/Spurwechsel.app/Contents/Resources/spurwechsel-cli.sh` -> `spur`

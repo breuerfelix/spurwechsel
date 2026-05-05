@@ -49,14 +49,41 @@ jobs:
           fi
 
           version="${tag#v}"
+          version_core="${version%%[-+]*}"
           echo "valid=true" >> "$GITHUB_OUTPUT"
           echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "version_core=$version_core" >> "$GITHUB_OUTPUT"
 
       - name: Build unsigned archive
         if: steps.tag.outputs.valid == 'true'
         env:
           ARCHIVE_PATH: ${{ github.workspace }}/.build/archive/spurwechsel.xcarchive
+          MARKETING_VERSION_OVERRIDE: ${{ steps.tag.outputs.version_core }}
+          CURRENT_PROJECT_VERSION_OVERRIDE: ${{ steps.tag.outputs.version_core }}
         run: ./scripts/build-unsigned-macos.sh archive
+
+      - name: Validate archived app bundle
+        if: steps.tag.outputs.valid == 'true'
+        env:
+          ARCHIVE_PATH: ${{ github.workspace }}/.build/archive/spurwechsel.xcarchive
+        run: |
+          APP_SOURCE_PATH="$ARCHIVE_PATH/Products/Applications/spurwechsel.app"
+          CLI_SCRIPT_PATH="$APP_SOURCE_PATH/Contents/Resources/spurwechsel-cli.sh"
+
+          if [[ ! -d "$APP_SOURCE_PATH" ]]; then
+            echo "Expected app not found at $APP_SOURCE_PATH" >&2
+            exit 1
+          fi
+
+          if [[ ! -f "$CLI_SCRIPT_PATH" ]]; then
+            echo "Expected CLI script not found at $CLI_SCRIPT_PATH" >&2
+            exit 1
+          fi
+
+          if [[ ! -x "$CLI_SCRIPT_PATH" ]]; then
+            echo "CLI script exists but is not executable: $CLI_SCRIPT_PATH" >&2
+            exit 1
+          fi
 
       - name: Package app and checksum
         if: steps.tag.outputs.valid == 'true'
@@ -79,6 +106,18 @@ jobs:
           fi
 
           ditto "$APP_SOURCE_PATH" "$APP_PATH"
+          CLI_SCRIPT_PATH="$APP_PATH/Contents/Resources/spurwechsel-cli.sh"
+
+          if [[ ! -f "$CLI_SCRIPT_PATH" ]]; then
+            echo "Packaged app missing CLI script at $CLI_SCRIPT_PATH" >&2
+            exit 1
+          fi
+
+          if [[ ! -x "$CLI_SCRIPT_PATH" ]]; then
+            echo "Packaged app CLI script is not executable: $CLI_SCRIPT_PATH" >&2
+            exit 1
+          fi
+
           ditto -c -k --sequesterRsrc --keepParent "$APP_PATH" "$ZIP_PATH"
           SHA256="$(shasum -a 256 "$ZIP_PATH" | awk '{print $1}')"
           printf '%s  %s\n' "$SHA256" "$ZIP_NAME" > "$SHA_PATH"
