@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-05-05
+
 ### Changed
 - Updated bundled `libghostty-spm` package to latest upstream snapshot and kept Spurwechsel terminal lifecycle integration needed for managed session shutdown.
 - Release archive pipeline now validates bundled CLI script presence and executable permissions before packaging and upload.
