@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-05
+
 ### Added
 - focus spurwechsel when using the cli
 
