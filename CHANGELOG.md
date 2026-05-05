@@ -9,6 +9,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 ### Added
 - focus spurwechsel when using the cli
 
+### Fixed
+- Tightened right `Projects` sidebar horizontal spacing so project rows align with left `Agents` sidebar content.
+
 ## [0.4.0] - 2026-05-05
 
 ### Changed

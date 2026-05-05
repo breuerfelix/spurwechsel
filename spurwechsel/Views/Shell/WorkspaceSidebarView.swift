@@ -1,5 +1,14 @@
 import SwiftUI
 
+private enum WorkspaceSidebarDensity {
+    static let sidebarSpacing: CGFloat = SpurSpacing.lg
+    static let titleHorizontalPadding: CGFloat = SpurSpacing.md
+    static let contentHorizontalPadding: CGFloat = SpurSpacing.xs
+    static let contentBottomPadding: CGFloat = SpurSpacing.xs
+    static let sidebarTopPadding: CGFloat = SpurSpacing.sm
+    static let sidebarBottomPadding: CGFloat = SpurSpacing.sm
+}
+
 struct WorkspaceSidebarView: View {
     @ObservedObject var shellStore: ShellStore
     @ObservedObject var workspaceStore: WorkspaceStore
@@ -12,7 +21,7 @@ struct WorkspaceSidebarView: View {
     private var theme: SpurTheme { shellStore.theme }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: SpurSpacing.lg) {
+        VStack(alignment: .leading, spacing: WorkspaceSidebarDensity.sidebarSpacing) {
             WorkspaceSidebarHeader(executeCommand: executeCommand, theme: theme)
 
             ScrollView {
@@ -29,8 +38,8 @@ struct WorkspaceSidebarView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.horizontal, SpurSpacing.sm)
-                .padding(.bottom, SpurSpacing.sm)
+                .padding(.horizontal, WorkspaceSidebarDensity.contentHorizontalPadding)
+                .padding(.bottom, WorkspaceSidebarDensity.contentBottomPadding)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
@@ -43,12 +52,11 @@ struct WorkspaceSidebarView: View {
                     toggleTheme()
                 }
             }
-            .padding(.horizontal, SpurSpacing.sm)
-            .padding(.bottom, SpurSpacing.sm)
+            .padding(.horizontal, WorkspaceSidebarDensity.titleHorizontalPadding)
+            .padding(.bottom, WorkspaceSidebarDensity.sidebarBottomPadding)
         }
-        .padding(.top, SpurSpacing.sm)
-        .padding(.horizontal, SpurSpacing.sm)
-        .padding(.bottom, SpurSpacing.sm)
+        .padding(.top, WorkspaceSidebarDensity.sidebarTopPadding)
+        .padding(.bottom, WorkspaceSidebarDensity.sidebarBottomPadding)
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 }
@@ -67,7 +75,7 @@ private struct WorkspaceSidebarHeader: View {
             Spacer()
             headerHoverPlusSlot
         }
-        .padding(.horizontal, SpurSpacing.sm)
+        .padding(.horizontal, WorkspaceSidebarDensity.titleHorizontalPadding)
         .frame(minHeight: 28)
         .onHover { hovering in
             isHovering = hovering
