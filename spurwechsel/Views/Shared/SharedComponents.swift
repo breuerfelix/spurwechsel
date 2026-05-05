@@ -93,6 +93,34 @@ struct GhostActionButton: View {
     }
 }
 
+struct HitboxIconButton: View {
+    let systemName: String
+    let title: String
+    let theme: SpurTheme
+    var hitboxSize: CGFloat = 32
+    var iconSize: CGFloat = 12
+    var accessibilityID: String? = nil
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: systemName)
+                .font(.system(size: iconSize, weight: .semibold))
+                .foregroundStyle(isHovering ? theme.foreground : theme.foregroundMuted)
+                .frame(width: hitboxSize, height: hitboxSize)
+                .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .help(title)
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .accessibilityIdentifier(accessibilityID ?? title.lowercased())
+    }
+}
+
 struct StatusBadgeView: View {
     let status: AgentSessionStatus
     let theme: SpurTheme

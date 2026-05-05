@@ -177,16 +177,16 @@ private struct ProjectRowView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
 
             if !project.worktrees.isEmpty {
-                Button {
+                HitboxIconButton(
+                    systemName: isCollapsed ? "chevron.right" : "chevron.down",
+                    title: isCollapsed ? "Show worktrees" : "Hide worktrees",
+                    theme: theme,
+                    hitboxSize: 16,
+                    iconSize: 10,
+                    accessibilityID: "projects.collapse.\(project.name.accessibilitySlug)"
+                ) {
                     toggleProjectCollapse(project.id)
-                } label: {
-                    Image(systemName: isCollapsed ? "chevron.right" : "chevron.down")
-                        .font(.system(size: 10, weight: .semibold))
-                        .foregroundStyle(theme.foregroundMuted)
-                        .frame(width: 20, height: 20)
                 }
-                .buttonStyle(.plain)
-                .accessibilityIdentifier("projects.collapse.\(project.name.accessibilitySlug)")
             }
         }
         .padding(.horizontal, 10)
