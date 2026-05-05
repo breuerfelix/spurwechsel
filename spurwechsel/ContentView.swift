@@ -45,8 +45,6 @@ private struct SpurwechselShellView: View {
         ZStack {
             GeometryReader { proxy in
                 let metrics = ShellMetrics(size: proxy.size, layout: store.layout)
-                let previewResizeBounds = ShellMetrics.previewWidthBounds(size: proxy.size, layout: store.layout)
-                let showsLeftSidebar = store.layout.effectiveShowsLeftSidebar
 
                 VStack(spacing: 0) {
                     TopBarView(
@@ -64,7 +62,7 @@ private struct SpurwechselShellView: View {
                         .padding(.horizontal, metrics.outerPadding)
 
                     HStack(alignment: .top, spacing: 0) {
-                        if showsLeftSidebar {
+                        if metrics.showsLeftSidebar {
                             ContextSidebarView(
                                 shellStore: store.shellStore,
                                 workspaceStore: store.workspaceStore,
@@ -85,10 +83,10 @@ private struct SpurwechselShellView: View {
                                 maxHeight: .infinity
                             )
 
-                        if store.layout.previewEnabled {
+                        if metrics.showsPreview {
                             previewResizeHandle(
                                 previewWidth: metrics.previewWidth,
-                                allowedRange: previewResizeBounds,
+                                allowedRange: metrics.previewWidthBounds,
                                 handleWidth: metrics.gap
                             )
 
@@ -96,14 +94,14 @@ private struct SpurwechselShellView: View {
                                 .frame(width: metrics.previewWidth)
                                 .transition(.move(edge: .trailing).combined(with: .opacity))
 
-                            if store.layout.showsRightSidebar {
+                            if metrics.showsRightSidebar {
                                 panelGap(width: metrics.gap)
                             }
-                        } else if store.layout.showsRightSidebar {
+                        } else if metrics.showsRightSidebar {
                             panelGap(width: metrics.gap)
                         }
 
-                        if store.layout.showsRightSidebar {
+                        if metrics.showsRightSidebar {
                             WorkspaceSidebarView(
                                 shellStore: store.shellStore,
                                 workspaceStore: store.workspaceStore,
@@ -120,9 +118,9 @@ private struct SpurwechselShellView: View {
                     .padding(.horizontal, metrics.outerPadding)
                     .padding(.bottom, metrics.outerPadding)
                     .padding(.top, 2)
-                    .animation(.spring(response: 0.28, dampingFraction: 0.9), value: store.layout.previewEnabled)
-                    .animation(.spring(response: 0.28, dampingFraction: 0.9), value: showsLeftSidebar)
-                    .animation(.spring(response: 0.28, dampingFraction: 0.9), value: store.layout.showsRightSidebar)
+                    .animation(.spring(response: 0.28, dampingFraction: 0.9), value: metrics.showsPreview)
+                    .animation(.spring(response: 0.28, dampingFraction: 0.9), value: metrics.showsLeftSidebar)
+                    .animation(.spring(response: 0.28, dampingFraction: 0.9), value: metrics.showsRightSidebar)
                 }
 
             }
@@ -480,6 +478,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
         private enum ChromeMetrics {
             static let trafficLightLeadingPadding: CGFloat = 10
             static let iconGap: CGFloat = SpurSpacing.sm / 2
+            static let minimumWindowSize = NSSize(width: 900, height: 620)
         }
 
         private let onWindowKeyChange: (Bool) -> Void
@@ -613,6 +612,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
             window.titlebarAppearsTransparent = true
             window.styleMask.insert(.fullSizeContentView)
             window.isMovableByWindowBackground = false
+            window.contentMinSize = ChromeMetrics.minimumWindowSize
             if #available(macOS 11.0, *) {
                 window.toolbarStyle = .unifiedCompact
             }
@@ -901,14 +901,8 @@ private final class WindowObserverNSView: NSView {
 
 private struct ShellMetrics {
     private static let minimumContentWidth: CGFloat = 720
-    private static let leftSidebarFraction: CGFloat = 0.21
-    private static let rightSidebarFraction: CGFloat = 0.22
-    private static let leftSidebarMinWidth: CGFloat = 216
     private static let leftSidebarMaxWidth: CGFloat = 288
-    private static let rightSidebarMinWidth: CGFloat = 220
-    private static let rightSidebarMaxWidth: CGFloat = 320
-    private static let leftSidebarCompressedMinWidth: CGFloat = 180
-    private static let rightSidebarCompressedMinWidth: CGFloat = 180
+    private static let rightSidebarMaxWidth: CGFloat = 272
     private static let minimumMainWidthForCompression: CGFloat = 360
     private static let absoluteMinimumMainWidth: CGFloat = 320
     private static let minimumPreviewWidth: CGFloat = 260
@@ -917,8 +911,12 @@ private struct ShellMetrics {
 
     let outerPadding: CGFloat
     let gap: CGFloat
+    let showsLeftSidebar: Bool
+    let showsPreview: Bool
+    let showsRightSidebar: Bool
     let leftSidebarWidth: CGFloat
     let previewWidth: CGFloat
+    let previewWidthBounds: ClosedRange<CGFloat>
     let rightSidebarWidth: CGFloat
     let mainWidth: CGFloat
 
@@ -927,115 +925,90 @@ private struct ShellMetrics {
         outerPadding = compact ? SpurSpacing.sm : SpurSpacing.md
         gap = compact ? SpurSpacing.sm : SpurSpacing.md
 
-        let panelCount = [
-            layout.effectiveShowsLeftSidebar,
-            layout.previewEnabled,
-            layout.showsRightSidebar
-        ].filter { $0 }.count
+        let preferredShowsLeftSidebar = layout.effectiveShowsLeftSidebar
+        let preferredShowsPreview = layout.previewEnabled
+        let preferredShowsRightSidebar = layout.showsRightSidebar
 
-        let contentWidth = Self.contentWidth(
-            size: size,
-            outerPadding: outerPadding,
-            gap: gap,
-            panelCount: panelCount
-        )
+        var resolvedShowsLeftSidebar = preferredShowsLeftSidebar
+        var resolvedShowsPreview = preferredShowsPreview
+        var resolvedShowsRightSidebar = preferredShowsRightSidebar
 
-        var left = layout.effectiveShowsLeftSidebar
-            ? Self.clamp(contentWidth * Self.leftSidebarFraction, min: Self.leftSidebarMinWidth, max: Self.leftSidebarMaxWidth)
-            : 0
+        var resolvedPreviewBounds = Self.minimumPreviewWidth...Self.minimumPreviewWidth
+        var resolvedPreviewWidth: CGFloat = 0
+        var resolvedMainWidth: CGFloat = Self.minimumContentWidth
 
-        var right = layout.showsRightSidebar
-            ? Self.clamp(contentWidth * Self.rightSidebarFraction, min: Self.rightSidebarMinWidth, max: Self.rightSidebarMaxWidth)
-            : 0
-
-        var preview: CGFloat = 0
-        if layout.previewEnabled {
-            let defaultPreviewWidth = Self.clamp(
-                contentWidth * 0.30,
-                min: Self.defaultPreviewMinWidth,
-                max: Self.defaultPreviewMaxWidth
-            )
-            let requestedPreviewWidth = layout.preferredPreviewWidth ?? defaultPreviewWidth
-            let previewBounds = Self.previewWidthBounds(
+        while true {
+            let panelCount = [
+                resolvedShowsLeftSidebar,
+                resolvedShowsPreview,
+                resolvedShowsRightSidebar
+            ].filter { $0 }.count
+            let contentWidth = Self.contentWidth(
                 size: size,
-                layout: layout,
                 outerPadding: outerPadding,
-                gap: gap
+                gap: gap,
+                panelCount: panelCount
             )
-            preview = Self.clamp(requestedPreviewWidth, min: previewBounds.lowerBound, max: previewBounds.upperBound)
+            let leftWidth = resolvedShowsLeftSidebar ? Self.leftSidebarMaxWidth : 0
+            let rightWidth = resolvedShowsRightSidebar ? Self.rightSidebarMaxWidth : 0
+
+            if resolvedShowsPreview {
+                let maxPreviewWidth = contentWidth - leftWidth - rightWidth - Self.minimumMainWidthForCompression
+                if maxPreviewWidth >= Self.minimumPreviewWidth {
+                    let defaultPreviewWidth = Self.clamp(
+                        contentWidth * 0.30,
+                        min: Self.defaultPreviewMinWidth,
+                        max: Self.defaultPreviewMaxWidth
+                    )
+                    let requestedPreviewWidth = layout.preferredPreviewWidth ?? defaultPreviewWidth
+                    resolvedPreviewBounds = Self.minimumPreviewWidth...maxPreviewWidth
+                    resolvedPreviewWidth = Self.clamp(
+                        requestedPreviewWidth,
+                        min: resolvedPreviewBounds.lowerBound,
+                        max: resolvedPreviewBounds.upperBound
+                    )
+                } else {
+                    if resolvedShowsRightSidebar {
+                        resolvedShowsRightSidebar = false
+                    } else {
+                        resolvedShowsPreview = false
+                    }
+                    resolvedPreviewBounds = Self.minimumPreviewWidth...Self.minimumPreviewWidth
+                    resolvedPreviewWidth = 0
+                    continue
+                }
+            } else {
+                resolvedPreviewBounds = Self.minimumPreviewWidth...Self.minimumPreviewWidth
+                resolvedPreviewWidth = 0
+            }
+
+            resolvedMainWidth = contentWidth - leftWidth - rightWidth - resolvedPreviewWidth
+            if resolvedMainWidth >= Self.minimumMainWidthForCompression {
+                break
+            }
+            if resolvedShowsRightSidebar {
+                resolvedShowsRightSidebar = false
+                continue
+            }
+            if resolvedShowsPreview {
+                resolvedShowsPreview = false
+                continue
+            }
+            if resolvedShowsLeftSidebar {
+                resolvedShowsLeftSidebar = false
+                continue
+            }
+            break
         }
 
-        let minimumPanelsWidth = max(contentWidth - Self.minimumMainWidthForCompression, 0)
-        let panelWidthTotal = left + preview + right
-        if panelWidthTotal > minimumPanelsWidth {
-            var deficit = panelWidthTotal - minimumPanelsWidth
-
-            let rightSlack = max(right - Self.rightSidebarCompressedMinWidth, 0)
-            let rightReduction = min(deficit, rightSlack)
-            right -= rightReduction
-            deficit -= rightReduction
-
-            let leftSlack = max(left - Self.leftSidebarCompressedMinWidth, 0)
-            let leftReduction = min(deficit, leftSlack)
-            left -= leftReduction
-            deficit -= leftReduction
-
-            let previewSlack = max(preview - Self.minimumPreviewWidth, 0)
-            let previewReduction = min(deficit, previewSlack)
-            preview -= previewReduction
-        }
-
-        let main = contentWidth - left - preview - right
-
-        leftSidebarWidth = left
-        previewWidth = preview
-        rightSidebarWidth = right
-        mainWidth = max(main, Self.absoluteMinimumMainWidth)
-    }
-
-    static func previewWidthBounds(size: CGSize, layout: AppLayoutState) -> ClosedRange<CGFloat> {
-        let compact = size.width < 1380
-        let outerPadding = compact ? SpurSpacing.sm : SpurSpacing.md
-        let gap = compact ? SpurSpacing.sm : SpurSpacing.md
-        return previewWidthBounds(size: size, layout: layout, outerPadding: outerPadding, gap: gap)
-    }
-
-    private static func previewWidthBounds(
-        size: CGSize,
-        layout: AppLayoutState,
-        outerPadding: CGFloat,
-        gap: CGFloat
-    ) -> ClosedRange<CGFloat> {
-        guard layout.previewEnabled else {
-            return minimumPreviewWidth...minimumPreviewWidth
-        }
-
-        let panelCount = [
-            layout.effectiveShowsLeftSidebar,
-            layout.previewEnabled,
-            layout.showsRightSidebar
-        ].filter { $0 }.count
-
-        let contentWidth = contentWidth(
-            size: size,
-            outerPadding: outerPadding,
-            gap: gap,
-            panelCount: panelCount
-        )
-
-        let left = layout.effectiveShowsLeftSidebar
-            ? clamp(contentWidth * leftSidebarFraction, min: leftSidebarMinWidth, max: leftSidebarMaxWidth)
-            : 0
-        let right = layout.showsRightSidebar
-            ? clamp(contentWidth * rightSidebarFraction, min: rightSidebarMinWidth, max: rightSidebarMaxWidth)
-            : 0
-
-        var maxPreview = contentWidth - left - right - minimumMainWidthForCompression
-        maxPreview += max(right - rightSidebarCompressedMinWidth, 0)
-        maxPreview += max(left - leftSidebarCompressedMinWidth, 0)
-        maxPreview = max(maxPreview, minimumPreviewWidth)
-
-        return minimumPreviewWidth...maxPreview
+        showsLeftSidebar = resolvedShowsLeftSidebar
+        showsPreview = resolvedShowsPreview
+        showsRightSidebar = resolvedShowsRightSidebar
+        leftSidebarWidth = resolvedShowsLeftSidebar ? Self.leftSidebarMaxWidth : 0
+        previewWidth = resolvedPreviewWidth
+        previewWidthBounds = resolvedPreviewBounds
+        rightSidebarWidth = resolvedShowsRightSidebar ? Self.rightSidebarMaxWidth : 0
+        mainWidth = max(resolvedMainWidth, Self.absoluteMinimumMainWidth)
     }
 
     private static func contentWidth(

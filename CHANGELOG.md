@@ -12,6 +12,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 ### Fixed
 - Tightened right `Projects` sidebar horizontal spacing so project rows align with left `Agents` sidebar content.
 - Increased `Projects` sidebar worktree toggle hit area without adding visible button chrome, making hide/show worktrees easier to click.
+- Locked left and right sidebars to fixed widths while resizing window, switched narrow-width auto-hide order to right sidebar, then preview, then left sidebar, and enforced a global minimum window size.
+- Reduced fixed right sidebar width by about 15% to reclaim more space for main surface content.
 
 ## [0.4.0] - 2026-05-05
 
