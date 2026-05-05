@@ -16,6 +16,11 @@ extension AppCoordinator {
         store.applicationQuitHandler()
     }
 
+    func handleWindowCloseRequest() -> Bool {
+        requestApplicationQuit()
+        return false
+    }
+
     func shutdownTerminalRuntimes() {
         Task {
             _ = await prepareForTermination()
@@ -24,6 +29,20 @@ extension AppCoordinator {
 
     func dismissConfigNotification() {
         shellStore.dismissConfigNotification()
+    }
+
+    func handleExternalURL(_ url: URL) {
+        do {
+            let request = try ExternalWorkspaceDeepLinkRequest(url: url)
+            handleExternalWorkspaceOpen(request)
+        } catch {
+            Self.logger.error("External URL rejected: \(url.absoluteString, privacy: .public) reason=\(error.localizedDescription, privacy: .public)")
+            presentExternalOpenNotice(
+                title: "Cannot open workspace",
+                message: "Deep link is invalid.",
+                detailMessage: error.localizedDescription
+            )
+        }
     }
 
     func prepareForTermination() async -> AppTerminationSummary {
@@ -243,6 +262,108 @@ extension AppCoordinator {
 
     func dispatchShortcutCommand(_ command: CommandID) {
         executeCommand(command, source: .shortcut)
+    }
+
+    private func handleExternalWorkspaceOpen(_ request: ExternalWorkspaceDeepLinkRequest) {
+        let normalizedWorkspacePath = normalizePath(request.workspacePath)
+        let normalizedProjectPath = normalizePath(request.projectPath)
+        Self.logger.debug(
+            "External workspace open requested workspace=\(normalizedWorkspacePath, privacy: .public) project=\(normalizedProjectPath, privacy: .public)"
+        )
+
+        var resolvedSelection = workspaceSelection(matchingNormalizedPath: normalizedWorkspacePath)
+        if resolvedSelection == nil {
+            refreshProjectsFromConfig()
+            resolvedSelection = workspaceSelection(matchingNormalizedPath: normalizedWorkspacePath)
+        }
+
+        if resolvedSelection == nil {
+            let projectAlreadyConfigured = projectConfig.projects.contains {
+                normalizePath($0.path) == normalizedProjectPath
+            }
+
+            if projectAlreadyConfigured {
+                refreshProjectsFromConfig()
+            } else {
+                _ = importProjects(from: [URL(fileURLWithPath: normalizedProjectPath, isDirectory: true)])
+            }
+
+            resolvedSelection = workspaceSelection(matchingNormalizedPath: normalizedWorkspacePath)
+            if resolvedSelection == nil {
+                resolvedSelection = workspaceSelection(matchingNormalizedPath: normalizedProjectPath)
+            }
+        }
+
+        guard let resolvedSelection else {
+            Self.logger.error(
+                "External workspace open failed after refresh/import workspace=\(normalizedWorkspacePath, privacy: .public) project=\(normalizedProjectPath, privacy: .public)"
+            )
+            presentExternalOpenNotice(
+                title: "Workspace not found",
+                message: "Could not resolve workspace for deep link.",
+                detailMessage: normalizedWorkspacePath
+            )
+            return
+        }
+
+        selectWorkspace(resolvedSelection)
+        activateMainWindowForExternalOpen()
+    }
+
+    private func workspaceSelection(matchingNormalizedPath normalizedPath: String) -> WorkspaceSelection? {
+        for project in projects.projects {
+            if normalizePath(project.path) == normalizedPath {
+                return .project(project.id)
+            }
+            if let worktree = project.worktrees.first(where: { normalizePath($0.path) == normalizedPath }) {
+                return .worktree(worktree.id)
+            }
+        }
+        return nil
+    }
+
+    private func presentExternalOpenNotice(
+        title: String,
+        message: String,
+        detailMessage: String?
+    ) {
+        shellStore.setConfigNotification(
+            ConfigNotificationState(
+                title: title,
+                message: message,
+                detailMessage: detailMessage
+            )
+        )
+    }
+
+    private func activateMainWindowForExternalOpen() {
+        NSApp.activate(ignoringOtherApps: true)
+
+        DispatchQueue.main.async {
+            let candidateWindows = NSApp.windows.filter { window in
+                !window.isExcludedFromWindowsMenu
+            }
+
+            if candidateWindows.count > 1 {
+                Self.logger.error(
+                    "External URL opened with multiple app windows: count=\(candidateWindows.count, privacy: .public). Spurwechsel expects single main window."
+                )
+            }
+
+            let targetWindow = NSApp.keyWindow
+                ?? NSApp.mainWindow
+                ?? candidateWindows.first
+            guard let targetWindow else {
+                Self.logger.error("External URL activation failed: no app window available.")
+                return
+            }
+
+            if targetWindow.isMiniaturized {
+                targetWindow.deminiaturize(nil)
+            }
+
+            targetWindow.makeKeyAndOrderFront(nil)
+        }
     }
 
     var filteredCommands: [CommandID] {

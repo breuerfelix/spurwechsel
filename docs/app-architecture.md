@@ -37,6 +37,11 @@ This splits UI publishing by domain while still exposing one app-level object to
 3. Core flow mutates store state and starts side effects.
 4. Child stores publish changes back into SwiftUI.
 
+External deep links use delegate path, then same coordinator core:
+1. `NSApplicationDelegate.application(_:open:)` receives URL.
+2. Delegate queues URLs during cold launch until store exists.
+3. `AppCoordinator.handleExternalURL(_:)` decodes and routes to workspace import/select flow.
+
 ## State Domains
 - shell/layout: theme, sidebars, preview, focus, shutdown, window activity
 - workspace: imported repos, worktrees, selection, collapse state
@@ -46,6 +51,7 @@ This splits UI publishing by domain while still exposing one app-level object to
 - workbench: surface tabs and mounted main/preview slots
 
 ## Key Invariants
+- single main app window
 - one selected workspace at time
 - one selected main surface tab at time
 - same surface ID cannot mount in both main and preview slots

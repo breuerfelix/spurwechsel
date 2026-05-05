@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 
 ### Added
 - New `remove-project` command with confirmation to remove current project from Spurwechsel config without deleting files on disk.
+- App now supports external workspace open deep links: `spurwechsel://open-workspace?workspace_b64=...&project_b64=...`.
+- Bundled CLI script at `Spurwechsel.app/Contents/Resources/spurwechsel-cli.sh` to open/import workspace from current terminal folder via deep link.
 
 ### Changed
 - Default built-in agent config now marks `opencode` as default instead of `claude`.

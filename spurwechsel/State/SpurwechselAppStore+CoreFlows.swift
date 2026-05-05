@@ -21,6 +21,14 @@ extension SpurwechselAppStore {
         coordinator.requestApplicationQuit()
     }
 
+    func handleWindowCloseRequest() -> Bool {
+        coordinator.handleWindowCloseRequest()
+    }
+
+    func handleExternalURL(_ url: URL) {
+        coordinator.handleExternalURL(url)
+    }
+
     func setApplicationActive(_ isActive: Bool) {
         coordinator.setApplicationActive(isActive)
     }

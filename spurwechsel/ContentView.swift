@@ -17,7 +17,7 @@ struct ContentView: View {
                     onWindowKeyChange: store.setWindowKey(_:),
                     onApplicationActiveChange: store.setApplicationActive(_:),
                     onKeyDownIntercept: store.handleGlobalShortcutEvent(_:),
-                    onWindowCloseRequest: store.requestApplicationQuit,
+                    handleWindowCloseRequest: store.handleWindowCloseRequest,
                     onFocusedSurfaceSlotChange: store.recordFocusedSurfaceSlot(_:),
                     onWindowChromeStateChange: store.setWindowChromeState(_:),
                     topBarFrameInWindow: store.windowChromeState.topBarFrameInWindow,
@@ -435,7 +435,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
     let onWindowKeyChange: (Bool) -> Void
     let onApplicationActiveChange: (Bool) -> Void
     let onKeyDownIntercept: (NSEvent) -> Bool
-    let onWindowCloseRequest: () -> Void
+    let handleWindowCloseRequest: () -> Bool
     let onFocusedSurfaceSlotChange: (SurfaceSlot) -> Void
     let onWindowChromeStateChange: (WindowChromeState) -> Void
     let topBarFrameInWindow: CGRect?
@@ -447,7 +447,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
             onWindowKeyChange: onWindowKeyChange,
             onApplicationActiveChange: onApplicationActiveChange,
             onKeyDownIntercept: onKeyDownIntercept,
-            onWindowCloseRequest: onWindowCloseRequest,
+            handleWindowCloseRequest: handleWindowCloseRequest,
             onFocusedSurfaceSlotChange: onFocusedSurfaceSlotChange,
             onWindowChromeStateChange: onWindowChromeStateChange,
             isCommandBarPresented: isCommandBarPresented
@@ -485,7 +485,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
         private let onWindowKeyChange: (Bool) -> Void
         private let onApplicationActiveChange: (Bool) -> Void
         private let onKeyDownIntercept: (NSEvent) -> Bool
-        private let onWindowCloseRequest: () -> Void
+        private let handleWindowCloseRequest: () -> Bool
         private let onFocusedSurfaceSlotChange: (SurfaceSlot) -> Void
         private let onWindowChromeStateChange: (WindowChromeState) -> Void
         private var isCommandBarPresented: Bool
@@ -509,7 +509,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
             onWindowKeyChange: @escaping (Bool) -> Void,
             onApplicationActiveChange: @escaping (Bool) -> Void,
             onKeyDownIntercept: @escaping (NSEvent) -> Bool,
-            onWindowCloseRequest: @escaping () -> Void,
+            handleWindowCloseRequest: @escaping () -> Bool,
             onFocusedSurfaceSlotChange: @escaping (SurfaceSlot) -> Void,
             onWindowChromeStateChange: @escaping (WindowChromeState) -> Void,
             isCommandBarPresented: Bool
@@ -517,7 +517,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
             self.onWindowKeyChange = onWindowKeyChange
             self.onApplicationActiveChange = onApplicationActiveChange
             self.onKeyDownIntercept = onKeyDownIntercept
-            self.onWindowCloseRequest = onWindowCloseRequest
+            self.handleWindowCloseRequest = handleWindowCloseRequest
             self.onFocusedSurfaceSlotChange = onFocusedSurfaceSlotChange
             self.onWindowChromeStateChange = onWindowChromeStateChange
             self.isCommandBarPresented = isCommandBarPresented
@@ -801,8 +801,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
         }
 
         func windowShouldClose(_ sender: NSWindow) -> Bool {
-            onWindowCloseRequest()
-            return false
+            handleWindowCloseRequest()
         }
 
         private func installLocalKeyMonitor() {

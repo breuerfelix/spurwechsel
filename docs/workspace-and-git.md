@@ -36,6 +36,23 @@ Main files:
 5. save config
 6. refresh runtime project tree
 
+## External Deep-Link Open Flow
+Deep-link action: `spurwechsel://open-workspace?workspace_b64=...&project_b64=...`
+
+1. Decode and validate absolute workspace + project paths.
+2. Try resolving workspace by exact normalized path match:
+   - project root path
+   - linked worktree path
+3. If unresolved, refresh config snapshot once and retry.
+4. If still unresolved and project root is not configured, import project root record, refresh, retry.
+5. Select resolved workspace and keep current main view behavior.
+6. Reuse existing main window, bring app to foreground, and restore window if minimized.
+
+Notes:
+- config persists project repo roots only
+- linked worktrees are discovered, not persisted as separate project records
+- normal close-button quit behavior stays unchanged; warm deep links reuse scene routing and foreground existing main window
+
 ## Worktree Creation
 `GitRepositoryService.createWorktree(...)`:
 

@@ -10,12 +10,33 @@ import GhosttyTerminal
 import SwiftUI
 
 final class AppTerminationCoordinator: NSObject, NSApplicationDelegate {
-    weak var store: SpurwechselAppStore?
+    weak var store: SpurwechselAppStore? {
+        didSet {
+            drainPendingExternalURLs()
+        }
+    }
     private var inFlightTerminationTask: Task<Void, Never>?
+    private var pendingExternalURLs: [URL] = []
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.set(false, forKey: "ApplePressAndHoldEnabled")
         TerminalDebugLog.enable(.all)
+        drainPendingExternalURLs()
+    }
+
+    func application(_ application: NSApplication, open urls: [URL]) {
+        guard !urls.isEmpty else {
+            return
+        }
+
+        guard let store else {
+            pendingExternalURLs.append(contentsOf: urls)
+            return
+        }
+
+        for url in urls {
+            store.handleExternalURL(url)
+        }
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
@@ -37,6 +58,22 @@ final class AppTerminationCoordinator: NSObject, NSApplicationDelegate {
 
         return .terminateLater
     }
+
+    func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
+        false
+    }
+
+    private func drainPendingExternalURLs() {
+        guard let store, !pendingExternalURLs.isEmpty else {
+            return
+        }
+
+        let urls = pendingExternalURLs
+        pendingExternalURLs.removeAll()
+        for url in urls {
+            store.handleExternalURL(url)
+        }
+    }
 }
 
 @main
@@ -46,8 +83,9 @@ struct spurwechselApp: App {
     @StateObject private var store = SpurwechselAppStore()
 
     var body: some Scene {
-        WindowGroup {
+        Window("Spurwechsel", id: "main") {
             ContentView(store: store)
+                .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
                 .onAppear {
                     terminationCoordinator.store = store
                 }

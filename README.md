@@ -11,7 +11,23 @@ brew install code-server # optional for vscode inside spurwechsel (recommended)
 brew install --cask breuerfelix/tap/spurwechsel
 # the app is not signed yet, also there is no icon yet ...
 sudo xattr -r -d com.apple.quarantine /Applications/Spurwechsel.app
+
+# CLI (from any terminal):
+# spurwechsel .
+# spur .
 ```
+
+Homebrew tap should expose CLI by linking bundled app resource:
+- `#{appdir}/Spurwechsel.app/Contents/Resources/spurwechsel-cli.sh` -> `spurwechsel`
+- `#{appdir}/Spurwechsel.app/Contents/Resources/spurwechsel-cli.sh` -> `spur`
+
+CLI behavior:
+- resolves current folder to git repo/worktree root
+- opens Spurwechsel if needed, otherwise reuses running app window
+- switches to matching workspace
+- imports repo root first when project not configured yet
+- prints error for non-git folders
+- keeps running main scene registered for deep-link reopen events while preserving regular close-button quit behavior
 
 ## Features
 

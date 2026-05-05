@@ -4,5 +4,16 @@
 <dict>
 	<key>ApplePressAndHoldEnabled</key>
 	<false/>
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleURLName</key>
+			<string>dev.breuer.spurwechsel.deeplink</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>spurwechsel</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>
