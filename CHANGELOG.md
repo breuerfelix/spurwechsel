@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-05-05
+
 ### Added
 - New `remove-project` command with confirmation to remove current project from Spurwechsel config without deleting files on disk.
 - App now supports external workspace open deep links: `spurwechsel://open-workspace?workspace_b64=...&project_b64=...`.
