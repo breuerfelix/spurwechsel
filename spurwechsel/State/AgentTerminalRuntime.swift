@@ -181,10 +181,9 @@ final class LocalShellTerminalSessionController: ObservableObject {
             }
             self.emitProcessTerminationOnce(exitCode: nil)
         }
-        terminalState.onCommandFinished = { [weak self] event in
+        terminalState.onCommandFinished = { [weak self] exitCode, _ in
             guard let self else { return }
-            let exitCode = event.exitCode.map(Int32.init)
-            self.emitProcessTerminationOnce(exitCode: exitCode)
+            self.emitProcessTerminationOnce(exitCode: exitCode.map(Int32.init))
         }
 
         onTitleChange(startupTitle)
