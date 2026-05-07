@@ -6,6 +6,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-07
+
 ### Added
 - New config setting `terminal.commandKeyMapsToControl` (default `false`) to optionally remap `Command+<key>` into `Control+<key>` while terminal or agent terminal surface is focused.
 - Right `Projects` sidebar now supports config-driven sections with collapsible divider rows, per-section project counts, multi-section membership, fallback `other` grouping, and hidden empty sections.
