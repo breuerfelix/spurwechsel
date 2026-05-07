@@ -19,7 +19,8 @@ Main files:
 - launch command
 - launcher name
 - working directory
-- terminal title
+- terminal title (latest raw terminal title from OSC/title events)
+- display name is updated from latest non-empty terminal title
 - status
 - optional status detail message
 - optional plugin version metadata

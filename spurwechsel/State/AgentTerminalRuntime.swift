@@ -257,7 +257,6 @@ final class LocalShellTerminalSessionController: ObservableObject {
             self.emitProcessTerminationOnce(exitCode: exitCode.map(Int32.init))
         }
 
-        onTitleChange(startupTitle)
     }
 
     private func handleTitleChange(_ title: String) {

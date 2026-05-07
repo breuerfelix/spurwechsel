@@ -1700,6 +1700,7 @@ extension AppCoordinator {
                         return
                     }
                     self.agents.updateTerminalTitle(for: session.id, title: title)
+                    self.refreshAgentSessionTabIfNeeded(sessionID: session.id)
                 },
                 onProcessTerminated: { [weak self] exitCode in
                     guard let self else {
@@ -1790,6 +1791,17 @@ extension AppCoordinator {
     private func selectOrCreateAgentSessionTab(_ session: AgentSession) {
         let tab = makeAgentSessionTab(session)
         upsertSurfaceTab(tab, select: true)
+    }
+
+    private func refreshAgentSessionTabIfNeeded(sessionID: UUID) {
+        let tabID = SurfaceTabID.agentSession(sessionID)
+        guard surfaceTabs.tabs.contains(where: { $0.id == tabID }) else {
+            return
+        }
+        guard let session = agents.sessions.first(where: { $0.id == sessionID }) else {
+            return
+        }
+        upsertSurfaceTab(makeAgentSessionTab(session), select: false)
     }
 
     private func selectOrCreateWorkspaceTerminalTab(for selection: WorkspaceSelection) {
