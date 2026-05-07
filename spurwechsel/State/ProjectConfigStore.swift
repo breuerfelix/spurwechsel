@@ -177,6 +177,14 @@ struct ProjectConfigStore {
         let commands = CommandID.allCases
             .map { "- `\($0.rawValue)`" }
             .joined(separator: "\n")
+        let defaultShortcuts = SpurwechselConfig.defaultShortcuts
+            .compactMap { shortcut -> String? in
+                guard let binding = ResolvedShortcutBinding(record: shortcut) else {
+                    return nil
+                }
+                return "- `\(binding.displayLabel)`: `\(shortcut.command.rawValue)`"
+            }
+            .joined(separator: "\n")
         let themeTokens = ThemeToken.allCases
             .map { "- `\($0.rawValue)`" }
             .joined(separator: "\n")
@@ -194,26 +202,38 @@ struct ProjectConfigStore {
 
         - `version`
         - `codeServer`
+        - `sections`
         - `projects`
         - `agents`
         - `shortcuts`
+        - `terminal`
         - `theme`
 
         ## Configurable fields
 
         - `version`: positive integer.
         - `codeServer.port`: integer from `1` to `65535`.
-        - `projects[]`: `path` (required), `name` (optional).
+        - `sections[]`: `id` (required), `name` (optional). Section id `other` is reserved.
+        - `projects[]`: `path` (required), `name` (optional), `sections` (optional list of section ids).
         - `agents[]`: `name` (required), `command` (required), `default` (optional bool).
         - `shortcuts[]`: `command` (required), `key` (required single character), `modifiers` (optional list).
+        - `terminal.commandKeyMapsToControl`: optional bool, default `false`.
         - `theme.light.<token>` and `theme.dark.<token>`: color string `#RRGGBB` or `#RRGGBBAA`.
 
         ## Important rules
 
         - `projects` store repository roots only. Worktrees are discovered from git.
+        - `projects[].sections` must reference ids from `sections[]`.
+        - If project has no valid sections, sidebar places it in fallback section `other`.
         - If no valid agents remain, Spurwechsel falls back to built-ins (`opencode`, `claude`, `codex`).
         - `shortcuts[].modifiers` supports only: `command`, `shift`, `option`, `control`.
         - Invalid values trigger diagnostics and fallback values.
+
+        ## Default shortcut bindings
+
+        These defaults apply when `shortcuts` is omitted. If user defines shortcut with same key+modifier signature, explicit config wins and conflicting default is dropped.
+
+        \(defaultShortcuts)
 
         ## Supported shortcut command IDs
 
@@ -229,9 +249,15 @@ struct ProjectConfigStore {
         version: 1
         codeServer:
           port: 8080
+        sections:
+          - id: active
+            name: "Active"
+          - id: experiments
+            name: "Experiments"
         projects:
           - path: "/Users/me/code/project"
             name: "Project"
+            sections: [active, experiments]
         agents:
           - name: opencode
             command: opencode
@@ -244,6 +270,35 @@ struct ProjectConfigStore {
           - command: toggle-command-bar
             key: k
             modifiers: [command]
+          - command: create-default-agent
+            key: t
+            modifiers: [command]
+          - command: select-next-agent
+            key: j
+            modifiers: [command, shift]
+          - command: select-previous-agent
+            key: k
+            modifiers: [command, shift]
+          - command: select-project
+            key: p
+            modifiers: [command]
+          - command: delete-agent
+            key: w
+            modifiers: [command]
+          - command: toggle-preview-pane
+            key: s
+            modifiers: [command, shift]
+          - command: open-agent-view
+            key: u
+            modifiers: [command, shift]
+          - command: open-terminal-view
+            key: i
+            modifiers: [command, shift]
+          - command: open-vscode-view
+            key: o
+            modifiers: [command, shift]
+        terminal:
+          commandKeyMapsToControl: false
         theme: {}
         ```
         """

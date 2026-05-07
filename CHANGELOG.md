@@ -6,6 +6,33 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-07
+
+### Added
+- New config setting `terminal.commandKeyMapsToControl` (default `false`) to optionally remap `Command+<key>` into `Control+<key>` while terminal or agent terminal surface is focused.
+- Right `Projects` sidebar now supports config-driven sections with collapsible divider rows, per-section project counts, multi-section membership, fallback `other` grouping, and hidden empty sections.
+- Expanded built-in shortcut set with defaults for project selection, agent cycling/removal, split view toggle, and direct `agent` / `terminal` / `vscode` view switching.
+- Managed `~/.spurwechsel/AGENTS.md` guide now lists default shortcut bindings explicitly, so agents can preserve or override built-ins correctly when editing config.
+- OpenCode Warp rich-status mapping now matches Warp local-agent semantics, including `session_start -> running`, waiting states for approval/input events, and `idle_prompt` as a no-op.
+- OpenCode agent sessions now read OpenCode config (`opencode.json`) to decide status mode: fallback sessions start `running`, Warp-plugin sessions start `idle` and transition with Warp events.
+- Agent top bar now shows yellow warning badge for OpenCode sessions without Warp plugin rich-status setup, with hover-open popup instructions that stay open until click-dismissed, plus a popup action button that inserts agent-ready global install instructions into current agent.
+- Added machine-local UI state file at `~/Library/Application Support/<bundle-id>/ui-state.json` for transient layout preferences that should persist across app restarts without touching `config.yaml`.
+- Non-Git project support: users can now add plain directories as projects, not only Git repositories.
+
+### Changed
+- Workspace refresh now detects Git capability per project path. Git projects keep branch/worktree data; plain directories load as single-node projects without branch/worktree metadata.
+- `spurwechsel` CLI now falls back to plain directory deep-link open/import when target path is not inside a Git repository, while preserving Git-root resolution when it is.
+
+### Fixed
+- Agent sessions now auto-remove when process exits or fails, matching `Remove Agent` cleanup so dead terminals do not stay visible.
+- Left `Agents` sidebar now hides projects/worktrees without agents, still always shows current selected workspace, and uses a lighter selected-workspace background highlight while keeping selected agent row highlight.
+- Left `Agents` sidebar removes subtle borders from non-selected agent rows and non-selected workspace group cards.
+- Agent session names in sidebar/header now follow latest non-empty OSC terminal title events instead of sticking to generated names like `opencode-1`.
+- Removed terminal runtime build warnings by resolving default terminal theme inside main-actor initializer.
+- Left and right sidebars are now resizable with minimum widths and remember user-adjusted widths across app restarts.
+- Git-only actions now gate on project capability and show explicit command-bar errors on plain projects instead of surfacing backend Git errors.
+- Command palette command list now hides `add-worktree` and `delete-worktree` when current project context is non-Git.
+
 ## [0.5.0] - 2026-05-05
 
 ### Added

@@ -10,6 +10,12 @@ enum CommandInvocationSource {
     case direct
 }
 
+enum KeyDownInterceptResult {
+    case passThrough
+    case consume
+    case replace(NSEvent)
+}
+
 @MainActor
 extension AppCoordinator {
     func requestApplicationQuit() {
@@ -240,28 +246,107 @@ extension AppCoordinator {
         projectConfig.shortcutBinding(for: command)
     }
 
+    func handleKeyDownEvent(
+        _ event: NSEvent,
+        focusedSurfaceSlot: SurfaceSlot?
+    ) -> KeyDownInterceptResult {
+        guard event.type == .keyDown else {
+            return .passThrough
+        }
+        if let matchedCommand = matchedShortcutCommand(for: event) {
+            dispatchShortcutCommand(matchedCommand)
+            return .consume
+        }
+        if let remappedEvent = remappedTerminalCommandEventIfNeeded(
+            event,
+            focusedSurfaceSlot: focusedSurfaceSlot
+        ) {
+            return .replace(remappedEvent)
+        }
+        return .passThrough
+    }
+
     @discardableResult
     func handleGlobalShortcutEvent(_ event: NSEvent) -> Bool {
-        guard event.type == .keyDown else {
-            return false
+        if let matchedCommand = matchedShortcutCommand(for: event) {
+            dispatchShortcutCommand(matchedCommand)
+            return true
         }
-        guard let eventKey = Self.normalizedShortcutKey(from: event) else {
-            return false
-        }
-        let eventModifiers = Self.shortcutModifiers(from: event)
-
-        guard let matchedBinding = configuredShortcuts.first(where: {
-            $0.key == eventKey && $0.modifiers == eventModifiers
-        }) else {
-            return false
-        }
-
-        dispatchShortcutCommand(matchedBinding.command)
-        return true
+        return false
     }
 
     func dispatchShortcutCommand(_ command: CommandID) {
         executeCommand(command, source: .shortcut)
+    }
+
+    private func matchedShortcutCommand(for event: NSEvent) -> CommandID? {
+        guard event.type == .keyDown else {
+            return nil
+        }
+        guard let eventKey = Self.normalizedShortcutKey(from: event) else {
+            return nil
+        }
+        let eventModifiers = Self.shortcutModifiers(from: event)
+
+        return configuredShortcuts.first(where: {
+            $0.key == eventKey && $0.modifiers == eventModifiers
+        })?.command
+    }
+
+    private func remappedTerminalCommandEventIfNeeded(
+        _ event: NSEvent,
+        focusedSurfaceSlot: SurfaceSlot?
+    ) -> NSEvent? {
+        guard projectConfig.terminal.commandKeyMapsToControl else {
+            return nil
+        }
+        guard let focusedSurfaceSlot,
+              let focusedSurfaceID = surfaceID(for: focusedSurfaceSlot) else {
+            return nil
+        }
+        switch focusedSurfaceID {
+        case .workspaceTerminal, .agentSession, .agentWorkspace:
+            break
+        case .vscodeWorkspace:
+            return nil
+        }
+
+        let flags = event.modifierFlags
+        guard flags.contains(.command) else {
+            return nil
+        }
+        guard let rawKey = event.charactersIgnoringModifiers,
+              rawKey.count == 1,
+              let scalar = rawKey.unicodeScalars.first,
+              !CharacterSet.controlCharacters.contains(scalar) else {
+            return nil
+        }
+
+        var replacementFlags = flags
+        replacementFlags.remove(.command)
+        replacementFlags.insert(.control)
+
+        return NSEvent.keyEvent(
+            with: .keyDown,
+            location: event.locationInWindow,
+            modifierFlags: replacementFlags,
+            timestamp: event.timestamp,
+            windowNumber: event.windowNumber,
+            context: nil,
+            characters: event.characters ?? rawKey,
+            charactersIgnoringModifiers: rawKey,
+            isARepeat: event.isARepeat,
+            keyCode: event.keyCode
+        )
+    }
+
+    private func surfaceID(for slot: SurfaceSlot) -> SurfaceTabID? {
+        switch slot {
+        case .main:
+            return mountedMainSurfaceID
+        case .preview:
+            return mountedPreviewSurfaceID
+        }
     }
 
     private func handleExternalWorkspaceOpen(_ request: ExternalWorkspaceDeepLinkRequest) {
@@ -372,7 +457,7 @@ extension AppCoordinator {
         }
 
         let trimmedQuery = commandBar.query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let commands = CommandID.allCases
+        let commands = visibleCommandsForCurrentContext()
 
         guard !trimmedQuery.isEmpty else {
             return commands
@@ -397,6 +482,22 @@ extension AppCoordinator {
                 return lhs.1 < rhs.1
             }
             .map(\.0)
+    }
+
+    private func visibleCommandsForCurrentContext() -> [CommandID] {
+        CommandID.allCases.filter { command in
+            switch command {
+            case .addWorktree, .deleteWorktree:
+                guard let projectID = resolveProjectContextID(preferred: commandBar.projectContextID),
+                      let project = projects.project(id: projectID)
+                else {
+                    return false
+                }
+                return project.isGitRepository
+            default:
+                return true
+            }
+        }
     }
 
     var filteredPickerItems: [CommandBarPickerItem] {
@@ -454,6 +555,35 @@ extension AppCoordinator {
         allowedRange: ClosedRange<CGFloat>
     ) {
         layout.setPreferredPreviewWidth(width, allowedRange: allowedRange)
+    }
+
+    func setPreferredLeftSidebarWidth(
+        _ width: CGFloat,
+        allowedRange: ClosedRange<CGFloat>
+    ) {
+        layout.setPreferredLeftSidebarWidth(width, allowedRange: allowedRange)
+    }
+
+    func setPreferredRightSidebarWidth(
+        _ width: CGFloat,
+        allowedRange: ClosedRange<CGFloat>
+    ) {
+        layout.setPreferredRightSidebarWidth(width, allowedRange: allowedRange)
+    }
+
+    func persistUIState() {
+        let state = UIStateFile(
+            layout: UILayoutState(
+                preferredLeftSidebarWidth: layout.preferredLeftSidebarWidth.map { Double($0) },
+                preferredRightSidebarWidth: layout.preferredRightSidebarWidth.map { Double($0) }
+            )
+        )
+
+        do {
+            try uiStateStore.save(state)
+        } catch {
+            Self.logger.error("Failed to save UI state at \(self.uiStateStore.stateURL.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
     }
 
     func toggleTheme() {
@@ -517,6 +647,10 @@ extension AppCoordinator {
 
     func toggleProjectCollapse(_ projectID: UUID) {
         projects.toggleProjectCollapse(projectID)
+    }
+
+    func toggleSectionCollapse(_ sectionID: String) {
+        projects.toggleSectionCollapse(sectionID)
     }
 
     func openCommandBar(
@@ -703,6 +837,13 @@ extension AppCoordinator {
                 )
                 return
             }
+            guard project.isGitRepository else {
+                commandBar.notice = CommandBarNotice(
+                    text: "Selected project is not a Git repository.",
+                    isError: true
+                )
+                return
+            }
 
             let deletedSelection = WorkspaceSelection.worktree(worktreeID)
             let preservedMainView = layout.selectedMainView
@@ -797,6 +938,179 @@ extension AppCoordinator {
         syncTerminalSurfaceActivation()
     }
 
+    private func handleAgentProcessTerminated(sessionID: UUID, exitCode: Int32?) {
+        guard agents.sessions.contains(where: { $0.id == sessionID }) else {
+            return
+        }
+
+        agents.updateExitCode(for: sessionID, exitCode: exitCode)
+        deleteAgent(sessionID: sessionID)
+    }
+
+    private func agentStatusTrace(_ message: String) {
+        #if DEBUG
+        print(message)
+        #else
+        Self.logger.debug("\(message, privacy: .public)")
+        #endif
+    }
+
+    private func handleAgentDesktopNotification(
+        sessionID: UUID,
+        title: String,
+        body: String
+    ) {
+        guard let session = agents.sessions.first(where: { $0.id == sessionID }) else {
+            agentStatusTrace("[agent-status] notification dropped; unknown session=\(sessionID.uuidString)")
+            return
+        }
+        guard session.kind == .opencode else {
+            agentStatusTrace("[agent-status] notification dropped; unsupported kind=\(session.kind.rawValue) session=\(session.name)")
+            return
+        }
+        guard session.expectsRichStatus else {
+            agentStatusTrace("[agent-status] notification ignored; rich-status disabled for session=\(session.name)")
+            return
+        }
+
+        let compactBody = body.replacingOccurrences(of: "\n", with: "\\n")
+        let bodyPreview = compactBody.count > 240 ? String(compactBody.prefix(240)) + "..." : compactBody
+        agentStatusTrace("[agent-status] notification received session=\(session.name) title=\(title) bodyPreview=\(bodyPreview)")
+
+        let parseOutcome = AgentRichStatusEvent.parseDesktopNotification(title: title, body: body)
+        switch parseOutcome {
+        case .wrongTitle:
+            agentStatusTrace("[agent-status] notification ignored; title mismatch expected=\(AgentRichStatusEvent.notificationTitle) actual=\(title)")
+            return
+        case let .invalidPayload(reason):
+            agentStatusTrace("[agent-status] notification parse failed; invalid payload session=\(session.name) reason=\(reason ?? "unknown")")
+            if let eventType = heuristicEventType(in: body) {
+                applyRichStatusEvent(type: eventType, summary: nil, to: sessionID)
+                let nextStatus = agents.sessions.first(where: { $0.id == sessionID })?.status.rawValue ?? "missing"
+                agentStatusTrace("[agent-status] heuristic apply event=\(eventType.rawValue) -> \(nextStatus) session=\(session.name)")
+            }
+            return
+        case let .parsed(event):
+            guard event.agent == .opencode else {
+                agentStatusTrace("[agent-status] notification ignored; payload agent=\(event.agent.rawValue) session=\(session.name)")
+                return
+            }
+
+            let previousStatus = session.status
+            agents.updateRichStatusMetadata(for: sessionID, pluginVersion: event.pluginVersion)
+            applyRichStatusEvent(type: event.type, summary: event.summary, to: sessionID)
+            let nextStatus = agents.sessions.first(where: { $0.id == sessionID })?.status
+            agentStatusTrace("[agent-status] event applied session=\(session.name) event=\(event.type.rawValue) from=\(previousStatus.rawValue) to=\(nextStatus?.rawValue ?? "missing") pluginVersion=\(event.pluginVersion ?? "nil")")
+            return
+        }
+    }
+
+    private func heuristicEventType(in body: String) -> AgentRichStatusEventType? {
+        if body.contains("\"event\":\"session_start\"") {
+            return .sessionStart
+        }
+        if body.contains("\"event\":\"prompt_submit\"") {
+            return .promptSubmit
+        }
+        if body.contains("\"event\":\"stop\"") {
+            return .stop
+        }
+        if body.contains("\"event\":\"permission_request\"") {
+            return .permissionRequest
+        }
+        if body.contains("\"event\":\"question_asked\"") {
+            return .questionAsked
+        }
+        if body.contains("\"event\":\"permission_replied\"") {
+            return .permissionReplied
+        }
+        if body.contains("\"event\":\"tool_complete\"") {
+            return .toolComplete
+        }
+        if body.contains("\"event\":\"idle_prompt\"") {
+            return .idlePrompt
+        }
+        return nil
+    }
+
+    private func applyRichStatusEvent(
+        type: AgentRichStatusEventType,
+        summary: String?,
+        to sessionID: UUID
+    ) {
+        switch type {
+        case .sessionStart:
+            agents.updateStatus(for: sessionID, status: .running, detail: nil)
+        case .promptSubmit:
+            agents.updateStatus(for: sessionID, status: .running, detail: nil)
+        case .permissionRequest:
+            agents.updateStatus(
+                for: sessionID,
+                status: .waitingApproval,
+                detail: summary ?? "Waiting for approval"
+            )
+        case .questionAsked:
+            agents.updateStatus(
+                for: sessionID,
+                status: .waitingInput,
+                detail: summary ?? "Waiting for input"
+            )
+        case .permissionReplied:
+            guard let session = agents.sessions.first(where: { $0.id == sessionID }) else {
+                return
+            }
+            if session.status == .waitingApproval || session.status == .waitingInput {
+                agents.updateStatus(for: sessionID, status: .running, detail: nil)
+            }
+        case .toolComplete:
+            return
+        case .stop:
+            agents.updateStatus(for: sessionID, status: .idle, detail: nil)
+        case .idlePrompt:
+            return
+        }
+    }
+
+    private func isOpenCodeWarpPluginInstalled(workingDirectory: String) -> Bool {
+        let localConfigPath = URL(fileURLWithPath: workingDirectory)
+            .appendingPathComponent("opencode.json", isDirectory: false)
+            .path
+        if FileManager.default.fileExists(atPath: localConfigPath) {
+            return openCodeConfigContainsWarpPlugin(atPath: localConfigPath)
+        }
+
+        let globalConfigPath = URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent(".config", isDirectory: true)
+            .appendingPathComponent("opencode", isDirectory: true)
+            .appendingPathComponent("opencode.json", isDirectory: false)
+            .path
+        if FileManager.default.fileExists(atPath: globalConfigPath) {
+            return openCodeConfigContainsWarpPlugin(atPath: globalConfigPath)
+        }
+
+        return false
+    }
+
+    private func openCodeConfigContainsWarpPlugin(atPath path: String) -> Bool {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let plugins = payload["plugin"] as? [Any] else {
+            return false
+        }
+
+        for entry in plugins {
+            guard let value = entry as? String else {
+                continue
+            }
+            if value == "@warp-dot-dev/opencode-warp" ||
+                value.hasPrefix("@warp-dot-dev/opencode-warp@") {
+                return true
+            }
+        }
+
+        return false
+    }
+
     @discardableResult
     func importProjects(from urls: [URL]) -> Int {
         let selectedPaths = urls.map(\.path).joined(separator: " | ")
@@ -813,28 +1127,7 @@ extension AppCoordinator {
             return 0
         }
 
-        var validRecords: [ProjectRecord] = []
-        var invalidRepositoryRecords: [ProjectRecord] = []
-        for record in newRecords {
-            do {
-                _ = try gitService.repositorySnapshot(at: URL(fileURLWithPath: record.path))
-                Self.logger.debug("Import validation passed for git repo: \(record.path, privacy: .public)")
-                validRecords.append(record)
-            } catch {
-                Self.logger.error("Import validation failed for path \(record.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                print("Spurwechsel import validation failed for \(record.path): \(error.localizedDescription)")
-                invalidRepositoryRecords.append(record)
-            }
-        }
-
-        guard !validRecords.isEmpty else {
-            Self.logger.error("Import aborted. All selected folders failed git repository validation.")
-            print("Spurwechsel import aborted: all selected folders failed git repository validation.")
-            presentImportValidationNotice(for: invalidRepositoryRecords, importedCount: 0)
-            return 0
-        }
-
-        projectConfig.projects.append(contentsOf: validRecords)
+        projectConfig.projects.append(contentsOf: newRecords)
         if let writeError = trySaveConfig() {
             Self.logger.error("Failed to save config at \(self.configStore.configURL.path, privacy: .public): \(writeError.localizedDescription, privacy: .public)")
             print("Spurwechsel config save failed at \(configStore.configURL.path): \(writeError.localizedDescription)")
@@ -844,7 +1137,7 @@ extension AppCoordinator {
 
         refreshProjectsFromConfig()
 
-        if let firstImportedRecord = validRecords.first,
+        if let firstImportedRecord = newRecords.first,
            let importedProject = projects.projects.first(where: {
                $0.path == firstImportedRecord.path || $0.name == firstImportedRecord.displayName
            }) {
@@ -855,58 +1148,8 @@ extension AppCoordinator {
         layout.showsLeftSidebar = true
         selectOrCreateAgentTab(for: projects.selection)
 
-        if !invalidRepositoryRecords.isEmpty {
-            presentImportValidationNotice(for: invalidRepositoryRecords, importedCount: validRecords.count)
-        }
-
-        Self.logger.debug("Import completed. Added \(validRecords.count, privacy: .public) project(s).")
-        return validRecords.count
-    }
-
-    private func presentImportValidationNotice(
-        for invalidRecords: [ProjectRecord],
-        importedCount: Int
-    ) {
-        guard !invalidRecords.isEmpty else {
-            return
-        }
-
-        let nonRepositoryNames = invalidRepositoryDisplayNames(for: invalidRecords)
-        let noun = invalidRecords.count == 1 ? "folder" : "folders"
-        let importMessage: String
-        if importedCount > 0 {
-            let projectNoun = importedCount == 1 ? "project" : "projects"
-            importMessage = "Added \(importedCount) \(projectNoun). "
-        } else {
-            importMessage = "Cannot add \(invalidRecords.count) \(noun). "
-        }
-        let namesMessage = nonRepositoryNames.joined(separator: ", ")
-        let repositoryNoun = invalidRecords.count == 1 ? "repository" : "repositories"
-        let message = "\(importMessage)\(invalidRecords.count == 1 ? "Folder is" : "Folders are") not Git \(repositoryNoun) and could not be added (\(namesMessage))."
-        Self.logger.error("Import rejected non-repository \(noun): \(namesMessage, privacy: .public)")
-
-        openCommandBar()
-        commandBar.mode = .commandList
-        commandBar.notice = CommandBarNotice(
-            text: message,
-            isError: true
-        )
-        commandBar.workspaceContext = nil
-    }
-
-    private func invalidRepositoryDisplayNames(for records: [ProjectRecord]) -> [String] {
-        let names = records.map { URL(fileURLWithPath: $0.path).lastPathComponent }
-        var nameCounts: [String: Int] = [:]
-        for name in names {
-            nameCounts[name, default: 0] += 1
-        }
-
-        return zip(records, names).map { record, name in
-            if nameCounts[name, default: 0] > 1 {
-                return record.path
-            }
-            return name
-        }
+        Self.logger.debug("Import completed. Added \(newRecords.count, privacy: .public) project(s).")
+        return newRecords.count
     }
 
     private func beginAddWorktreeFlow(
@@ -921,6 +1164,15 @@ extension AppCoordinator {
                 "Select project first, then run Add Worktree.",
                 source: source,
                 projectContextID: projectContextID,
+                workspaceContext: workspaceContext
+            )
+            return
+        }
+        guard project.isGitRepository else {
+            presentCommandBarError(
+                "Selected project is not a Git repository.",
+                source: source,
+                projectContextID: resolvedProjectID,
                 workspaceContext: workspaceContext
             )
             return
@@ -983,6 +1235,15 @@ extension AppCoordinator {
                 "Select project first, then run Delete Worktree.",
                 source: source,
                 projectContextID: commandBar.projectContextID,
+                workspaceContext: workspaceContext
+            )
+            return
+        }
+        guard project.isGitRepository else {
+            presentCommandBarError(
+                "Selected project is not a Git repository.",
+                source: source,
+                projectContextID: resolvedProjectID,
                 workspaceContext: workspaceContext
             )
             return
@@ -1231,6 +1492,13 @@ extension AppCoordinator {
                 )
                 return
             }
+            guard project.isGitRepository else {
+                commandBar.notice = CommandBarNotice(
+                    text: "Selected project is not a Git repository.",
+                    isError: true
+                )
+                return
+            }
 
             do {
                 let validatedName = try gitService.validateWorktreeName(commandBar.textInput)
@@ -1402,17 +1670,34 @@ extension AppCoordinator {
             return
         }
 
+        let agentKind = AgentKind.detect(from: command)
+        let expectsRichStatus = agentKind == .opencode
+            ? isOpenCodeWarpPluginInstalled(workingDirectory: workingDirectory)
+            : false
+        let runtimeCommand: String
+        if expectsRichStatus {
+            runtimeCommand = "WARP_CLI_AGENT_PROTOCOL_VERSION=1 \(command)"
+        } else {
+            runtimeCommand = command
+        }
         let session = agents.addAgent(
             to: workspaceSelection,
             launcherName: agentName,
             launchCommand: command,
-            workingDirectory: workingDirectory
+            workingDirectory: workingDirectory,
+            kind: agentKind,
+            expectsRichStatus: expectsRichStatus
         )
-        agents.updateStatus(for: session.id, status: .running)
+        agentStatusTrace("[agent-status] launch session=\(session.name) id=\(session.id.uuidString) kind=\(agentKind.rawValue) command=\(command)")
+        if expectsRichStatus {
+            agentStatusTrace("[agent-status] protocol env enabled WARP_CLI_AGENT_PROTOCOL_VERSION=1 session=\(session.name)")
+        }
+        let initialStatus: AgentSessionStatus = expectsRichStatus ? .idle : .running
+        agents.updateStatus(for: session.id, status: initialStatus)
 
         _ = terminalRegistry.acquire(id: .agent(session.id)) {
             let launchPlan = LocalShellTerminalSessionController.makeCommandLaunchPlan(
-                command: command,
+                command: runtimeCommand,
                 workingDirectory: workingDirectory
             )
             return LocalShellTerminalSessionController(
@@ -1425,19 +1710,23 @@ extension AppCoordinator {
                         return
                     }
                     self.agents.updateTerminalTitle(for: session.id, title: title)
+                    self.refreshAgentSessionTabIfNeeded(sessionID: session.id)
                 },
                 onProcessTerminated: { [weak self] exitCode in
                     guard let self else {
                         return
                     }
-                    self.agents.updateExitCode(for: session.id, exitCode: exitCode)
-                    let status: AgentSessionStatus
-                    if let exitCode {
-                        status = (exitCode == 0) ? .exited : .failed
-                    } else {
-                        status = .failed
+                    self.handleAgentProcessTerminated(sessionID: session.id, exitCode: exitCode)
+                },
+                onDesktopNotification: { [weak self] title, body in
+                    guard let self else {
+                        return
                     }
-                    self.agents.updateStatus(for: session.id, status: status)
+                    self.handleAgentDesktopNotification(
+                        sessionID: session.id,
+                        title: title,
+                        body: body
+                    )
                 }
             )
         }
@@ -1512,6 +1801,17 @@ extension AppCoordinator {
     private func selectOrCreateAgentSessionTab(_ session: AgentSession) {
         let tab = makeAgentSessionTab(session)
         upsertSurfaceTab(tab, select: true)
+    }
+
+    private func refreshAgentSessionTabIfNeeded(sessionID: UUID) {
+        let tabID = SurfaceTabID.agentSession(sessionID)
+        guard surfaceTabs.tabs.contains(where: { $0.id == tabID }) else {
+            return
+        }
+        guard let session = agents.sessions.first(where: { $0.id == sessionID }) else {
+            return
+        }
+        upsertSurfaceTab(makeAgentSessionTab(session), select: false)
     }
 
     private func selectOrCreateWorkspaceTerminalTab(for selection: WorkspaceSelection) {
@@ -2132,12 +2432,7 @@ extension AppCoordinator {
         var refreshedProjects: [Project] = []
         for record in projectConfig.projects {
             let normalizedRecordPath = normalizePath(record.path)
-            let snapshot: GitRepositorySnapshot
-            do {
-                snapshot = try gitService.repositorySnapshot(at: URL(fileURLWithPath: normalizedRecordPath))
-            } catch {
-                Self.logger.error("Skipping persisted project \(record.displayName, privacy: .public) at \(normalizedRecordPath, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                print("Spurwechsel skip persisted project \(record.displayName) at \(normalizedRecordPath): \(error.localizedDescription)")
+            guard let snapshot = workspaceSnapshot(at: normalizedRecordPath) else {
                 continue
             }
 
@@ -2181,15 +2476,24 @@ extension AppCoordinator {
                 Project(
                     id: projectID,
                     name: record.displayName,
-                    branch: snapshot.currentBranch,
+                    branch: snapshot.currentBranch ?? "",
                     path: snapshot.repositoryRootPath,
-                    worktrees: discoveredWorktrees
+                    sectionIDs: record.sections,
+                    worktrees: discoveredWorktrees,
+                    isGitRepository: snapshot.currentBranch != nil
                 )
             )
-            Self.logger.debug("Loaded project \(record.displayName, privacy: .public) branch \(snapshot.currentBranch, privacy: .public) worktrees \(snapshot.worktrees.count - 1, privacy: .public)")
+            if let currentBranch = snapshot.currentBranch {
+                Self.logger.debug("Loaded git project \(record.displayName, privacy: .public) branch \(currentBranch, privacy: .public) worktrees \(snapshot.worktrees.count - 1, privacy: .public)")
+            } else {
+                Self.logger.debug("Loaded plain directory project \(record.displayName, privacy: .public) path \(snapshot.repositoryRootPath, privacy: .public)")
+            }
         }
 
-        projects.replaceProjects(refreshedProjects)
+        projects.replaceProjects(
+            refreshedProjects,
+            configuredSections: projectConfig.sections
+        )
         let validSelections = Set(projects.orderedNodes.map(\.selection))
         pruneAgentSessions(keepingSelections: validSelections)
         let validWorkspaceIDs = validSelections.map { TerminalSessionID.workspace($0.stableID) }
@@ -2198,6 +2502,48 @@ extension AppCoordinator {
         pruneVSCodeWebRuntimes(keepingWorkspaceIDs: Set(validSelections.map(\.stableID)))
         pruneSurfaceTabs(keepingSelections: validSelections)
         Self.logger.debug("Refresh done. Active projects in UI: \(self.projects.projects.count, privacy: .public)")
+    }
+
+    private struct WorkspaceSnapshot {
+        let repositoryRootPath: String
+        let currentBranch: String?
+        let worktrees: [GitWorktreeSnapshot]
+    }
+
+    private func workspaceSnapshot(at normalizedPath: String) -> WorkspaceSnapshot? {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: normalizedPath, isDirectory: &isDirectory),
+              isDirectory.boolValue
+        else {
+            let message = "Path does not exist or is not directory"
+            Self.logger.error("Skipping persisted project at \(normalizedPath, privacy: .public): \(message, privacy: .public)")
+            print("Spurwechsel skip persisted project at \(normalizedPath): \(message)")
+            return nil
+        }
+
+        do {
+            let gitSnapshot = try gitService.repositorySnapshot(at: URL(fileURLWithPath: normalizedPath))
+            return WorkspaceSnapshot(
+                repositoryRootPath: gitSnapshot.repositoryRootPath,
+                currentBranch: gitSnapshot.currentBranch,
+                worktrees: gitSnapshot.worktrees
+            )
+        } catch let error as GitRepositoryServiceError {
+            if case .notRepository = error {
+                return WorkspaceSnapshot(
+                    repositoryRootPath: normalizedPath,
+                    currentBranch: nil,
+                    worktrees: []
+                )
+            }
+            Self.logger.error("Skipping persisted project at \(normalizedPath, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            print("Spurwechsel skip persisted project at \(normalizedPath): \(error.localizedDescription)")
+            return nil
+        } catch {
+            Self.logger.error("Skipping persisted project at \(normalizedPath, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            print("Spurwechsel skip persisted project at \(normalizedPath): \(error.localizedDescription)")
+            return nil
+        }
     }
 
     private func pruneSurfaceTabs(keepingSelections: Set<WorkspaceSelection>) {

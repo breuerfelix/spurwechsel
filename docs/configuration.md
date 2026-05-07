@@ -23,9 +23,11 @@ File is app-owned and rewritten when missing or stale (for example after app upd
 ## Config Domains
 - `version`
 - `codeServer`
+- `sections`
 - `projects`
 - `agents`
 - `shortcuts`
+- `terminal`
 - `theme`
 
 Raw file models live in `spurwechsel/Models/ConfigFileModels.swift`.
@@ -45,8 +47,19 @@ Each project record stores:
 
 - `path`
 - optional `name`
+- optional `sections` (list of section ids)
 
 Important detail: config stores repo roots only. Worktrees are discovered from git state, not persisted as separate records.
+
+If project has no valid section assignments, UI places it into fallback section `other`.
+
+## Section Records
+Each section record stores:
+
+- `id` (required)
+- optional `name`
+
+`projects[].sections` must reference existing section ids. Section id `other` is reserved for fallback grouping and cannot be configured directly.
 
 ## Agent Records
 Each agent record stores:
@@ -71,6 +84,12 @@ Each shortcut stores:
 `command` accepts any command ID from command registry (`toggle-command-bar`, `create-agent`, `open-vscode-view`, etc).
 
 Resolver enforces one binding per command and removes signature collisions.
+
+## Terminal Records
+`terminal.commandKeyMapsToControl` controls keyboard remap behavior on terminal-backed surfaces.
+
+- default: `false`
+- when `true`: `Command+<key>` is forwarded to terminal surfaces as `Control+<key>`
 
 ## Theme Records
 Theme config may override any subset of light or dark palette tokens. Missing values inherit from defaults.

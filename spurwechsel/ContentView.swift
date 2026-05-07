@@ -16,7 +16,7 @@ struct ContentView: View {
                 WindowActivityObserver(
                     onWindowKeyChange: store.setWindowKey(_:),
                     onApplicationActiveChange: store.setApplicationActive(_:),
-                    onKeyDownIntercept: store.handleGlobalShortcutEvent(_:),
+                    onKeyDownIntercept: store.handleKeyDownEvent(_:focusedSurfaceSlot:),
                     handleWindowCloseRequest: store.handleWindowCloseRequest,
                     onFocusedSurfaceSlotChange: store.recordFocusedSurfaceSlot(_:),
                     onWindowChromeStateChange: store.setWindowChromeState(_:),
@@ -37,7 +37,9 @@ struct ContentView: View {
 
 private struct SpurwechselShellView: View {
     @ObservedObject var store: SpurwechselAppStore
+    @State private var leftSidebarDragStartWidth: CGFloat?
     @State private var previewDragStartWidth: CGFloat?
+    @State private var rightSidebarDragStartWidth: CGFloat?
 
     private var theme: SpurTheme { store.theme }
 
@@ -73,7 +75,11 @@ private struct SpurwechselShellView: View {
                                 .frame(width: metrics.leftSidebarWidth)
                                 .transition(.move(edge: .leading).combined(with: .opacity))
 
-                            panelGap(width: metrics.gap)
+                            leftSidebarResizeHandle(
+                                leftSidebarWidth: metrics.leftSidebarWidth,
+                                allowedRange: metrics.leftSidebarWidthBounds,
+                                handleWidth: metrics.gap
+                            )
                         }
 
                         mainSurface
@@ -95,10 +101,18 @@ private struct SpurwechselShellView: View {
                                 .transition(.move(edge: .trailing).combined(with: .opacity))
 
                             if metrics.showsRightSidebar {
-                                panelGap(width: metrics.gap)
+                                rightSidebarResizeHandle(
+                                    rightSidebarWidth: metrics.rightSidebarWidth,
+                                    allowedRange: metrics.rightSidebarWidthBounds,
+                                    handleWidth: metrics.gap
+                                )
                             }
                         } else if metrics.showsRightSidebar {
-                            panelGap(width: metrics.gap)
+                            rightSidebarResizeHandle(
+                                rightSidebarWidth: metrics.rightSidebarWidth,
+                                allowedRange: metrics.rightSidebarWidthBounds,
+                                handleWidth: metrics.gap
+                            )
                         }
 
                         if metrics.showsRightSidebar {
@@ -109,7 +123,8 @@ private struct SpurwechselShellView: View {
                                 toggleTheme: { store.send(.toggleTheme) },
                                 selectWorkspace: { store.send(.selectWorkspace($0)) },
                                 addWorktree: { store.send(.addWorktree($0)) },
-                                toggleProjectCollapse: { store.send(.toggleProjectCollapse($0)) }
+                                toggleProjectCollapse: { store.send(.toggleProjectCollapse($0)) },
+                                toggleSectionCollapse: { store.send(.toggleSectionCollapse($0)) }
                             )
                                 .frame(width: metrics.rightSidebarWidth)
                                 .transition(.move(edge: .trailing).combined(with: .opacity))
@@ -274,12 +289,6 @@ private struct SpurwechselShellView: View {
         }
     }
 
-    private func panelGap(width: CGFloat) -> some View {
-        Color.clear
-            .frame(width: width, height: 1)
-            .accessibilityHidden(true)
-    }
-
     private func previewResizeHandle(
         previewWidth: CGFloat,
         allowedRange: ClosedRange<CGFloat>,
@@ -308,6 +317,68 @@ private struct SpurwechselShellView: View {
                     }
             )
             .accessibilityIdentifier("preview.resize-handle")
+    }
+
+    private func leftSidebarResizeHandle(
+        leftSidebarWidth: CGFloat,
+        allowedRange: ClosedRange<CGFloat>,
+        handleWidth: CGFloat
+    ) -> some View {
+        Color.clear
+            .frame(width: handleWidth)
+            .frame(maxHeight: .infinity)
+            .padding(.vertical, SpurSpacing.sm)
+            .background(Color.black.opacity(0.001))
+            .contentShape(Rectangle())
+            .modifier(HorizontalResizeCursorModifier())
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                    .onChanged { value in
+                        if leftSidebarDragStartWidth == nil {
+                            leftSidebarDragStartWidth = leftSidebarWidth
+                        }
+                        let startWidth = leftSidebarDragStartWidth ?? leftSidebarWidth
+                        let dragDelta = value.location.x - value.startLocation.x
+                        let proposedWidth = startWidth + dragDelta
+                        store.setPreferredLeftSidebarWidth(proposedWidth, allowedRange: allowedRange)
+                    }
+                    .onEnded { _ in
+                        leftSidebarDragStartWidth = nil
+                        store.persistUIState()
+                    }
+            )
+            .accessibilityIdentifier("sidebar.left.resize-handle")
+    }
+
+    private func rightSidebarResizeHandle(
+        rightSidebarWidth: CGFloat,
+        allowedRange: ClosedRange<CGFloat>,
+        handleWidth: CGFloat
+    ) -> some View {
+        Color.clear
+            .frame(width: handleWidth)
+            .frame(maxHeight: .infinity)
+            .padding(.vertical, SpurSpacing.sm)
+            .background(Color.black.opacity(0.001))
+            .contentShape(Rectangle())
+            .modifier(HorizontalResizeCursorModifier())
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                    .onChanged { value in
+                        if rightSidebarDragStartWidth == nil {
+                            rightSidebarDragStartWidth = rightSidebarWidth
+                        }
+                        let startWidth = rightSidebarDragStartWidth ?? rightSidebarWidth
+                        let dragDelta = value.location.x - value.startLocation.x
+                        let proposedWidth = startWidth - dragDelta
+                        store.setPreferredRightSidebarWidth(proposedWidth, allowedRange: allowedRange)
+                    }
+                    .onEnded { _ in
+                        rightSidebarDragStartWidth = nil
+                        store.persistUIState()
+                    }
+            )
+            .accessibilityIdentifier("sidebar.right.resize-handle")
     }
 }
 
@@ -432,7 +503,7 @@ private struct ConfigNotificationBannerView: View {
 private struct WindowActivityObserver: NSViewRepresentable {
     let onWindowKeyChange: (Bool) -> Void
     let onApplicationActiveChange: (Bool) -> Void
-    let onKeyDownIntercept: (NSEvent) -> Bool
+    let onKeyDownIntercept: (NSEvent, SurfaceSlot?) -> KeyDownInterceptResult
     let handleWindowCloseRequest: () -> Bool
     let onFocusedSurfaceSlotChange: (SurfaceSlot) -> Void
     let onWindowChromeStateChange: (WindowChromeState) -> Void
@@ -483,7 +554,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
 
         private let onWindowKeyChange: (Bool) -> Void
         private let onApplicationActiveChange: (Bool) -> Void
-        private let onKeyDownIntercept: (NSEvent) -> Bool
+        private let onKeyDownIntercept: (NSEvent, SurfaceSlot?) -> KeyDownInterceptResult
         private let handleWindowCloseRequest: () -> Bool
         private let onFocusedSurfaceSlotChange: (SurfaceSlot) -> Void
         private let onWindowChromeStateChange: (WindowChromeState) -> Void
@@ -507,7 +578,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
         init(
             onWindowKeyChange: @escaping (Bool) -> Void,
             onApplicationActiveChange: @escaping (Bool) -> Void,
-            onKeyDownIntercept: @escaping (NSEvent) -> Bool,
+            onKeyDownIntercept: @escaping (NSEvent, SurfaceSlot?) -> KeyDownInterceptResult,
             handleWindowCloseRequest: @escaping () -> Bool,
             onFocusedSurfaceSlotChange: @escaping (SurfaceSlot) -> Void,
             onWindowChromeStateChange: @escaping (WindowChromeState) -> Void,
@@ -815,11 +886,19 @@ private struct WindowActivityObserver: NSViewRepresentable {
                 guard let self else {
                     return event
                 }
-                let intercepted: Bool
+                let focusedSurfaceSlot = self.resolveFocusedSurfaceSlot(in: event.window ?? self.observedWindow)
+                let interceptedEvent: NSEvent?
                 if event.type == .keyDown {
-                    intercepted = self.onKeyDownIntercept(event)
+                    switch self.onKeyDownIntercept(event, focusedSurfaceSlot) {
+                    case .passThrough:
+                        interceptedEvent = event
+                    case .consume:
+                        interceptedEvent = nil
+                    case let .replace(replacement):
+                        interceptedEvent = replacement
+                    }
                 } else {
-                    intercepted = false
+                    interceptedEvent = event
                 }
 
                 let sourceWindow = event.window ?? self.observedWindow
@@ -829,7 +908,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
                     }
                 }
 
-                return intercepted ? nil : event
+                return interceptedEvent
             }
         }
 
@@ -901,8 +980,10 @@ private final class WindowObserverNSView: NSView {
 
 private struct ShellMetrics {
     private static let minimumContentWidth: CGFloat = 720
-    private static let leftSidebarMaxWidth: CGFloat = 288
-    private static let rightSidebarMaxWidth: CGFloat = 272
+    private static let defaultLeftSidebarWidth: CGFloat = 288
+    private static let defaultRightSidebarWidth: CGFloat = 272
+    private static let minimumLeftSidebarWidth: CGFloat = 240
+    private static let minimumRightSidebarWidth: CGFloat = 220
     private static let minimumMainWidthForCompression: CGFloat = 360
     private static let absoluteMinimumMainWidth: CGFloat = 320
     private static let minimumPreviewWidth: CGFloat = 260
@@ -915,9 +996,11 @@ private struct ShellMetrics {
     let showsPreview: Bool
     let showsRightSidebar: Bool
     let leftSidebarWidth: CGFloat
+    let leftSidebarWidthBounds: ClosedRange<CGFloat>
     let previewWidth: CGFloat
     let previewWidthBounds: ClosedRange<CGFloat>
     let rightSidebarWidth: CGFloat
+    let rightSidebarWidthBounds: ClosedRange<CGFloat>
     let mainWidth: CGFloat
 
     init(size: CGSize, layout: AppLayoutState) {
@@ -933,8 +1016,12 @@ private struct ShellMetrics {
         var resolvedShowsPreview = preferredShowsPreview
         var resolvedShowsRightSidebar = preferredShowsRightSidebar
 
+        var resolvedLeftBounds = Self.minimumLeftSidebarWidth...Self.minimumLeftSidebarWidth
+        var resolvedLeftWidth: CGFloat = 0
         var resolvedPreviewBounds = Self.minimumPreviewWidth...Self.minimumPreviewWidth
         var resolvedPreviewWidth: CGFloat = 0
+        var resolvedRightBounds = Self.minimumRightSidebarWidth...Self.minimumRightSidebarWidth
+        var resolvedRightWidth: CGFloat = 0
         var resolvedMainWidth: CGFloat = Self.minimumContentWidth
 
         while true {
@@ -949,11 +1036,55 @@ private struct ShellMetrics {
                 gap: gap,
                 panelCount: panelCount
             )
-            let leftWidth = resolvedShowsLeftSidebar ? Self.leftSidebarMaxWidth : 0
-            let rightWidth = resolvedShowsRightSidebar ? Self.rightSidebarMaxWidth : 0
+            let minimumRightWidth = resolvedShowsRightSidebar ? Self.minimumRightSidebarWidth : 0
+            let minimumPreviewWidth = resolvedShowsPreview ? Self.minimumPreviewWidth : 0
+
+            if resolvedShowsLeftSidebar {
+                let maxLeftWidth = contentWidth - minimumRightWidth - minimumPreviewWidth - Self.minimumMainWidthForCompression
+                if maxLeftWidth >= Self.minimumLeftSidebarWidth {
+                    resolvedLeftBounds = Self.minimumLeftSidebarWidth...maxLeftWidth
+                    let requestedLeftSidebarWidth = layout.preferredLeftSidebarWidth ?? Self.defaultLeftSidebarWidth
+                    resolvedLeftWidth = Self.clamp(
+                        requestedLeftSidebarWidth,
+                        min: resolvedLeftBounds.lowerBound,
+                        max: resolvedLeftBounds.upperBound
+                    )
+                } else {
+                    if resolvedShowsRightSidebar {
+                        resolvedShowsRightSidebar = false
+                    } else if resolvedShowsPreview {
+                        resolvedShowsPreview = false
+                    } else {
+                        resolvedShowsLeftSidebar = false
+                    }
+                    continue
+                }
+            } else {
+                resolvedLeftBounds = Self.minimumLeftSidebarWidth...Self.minimumLeftSidebarWidth
+                resolvedLeftWidth = 0
+            }
+
+            if resolvedShowsRightSidebar {
+                let maxRightWidth = contentWidth - resolvedLeftWidth - minimumPreviewWidth - Self.minimumMainWidthForCompression
+                if maxRightWidth >= Self.minimumRightSidebarWidth {
+                    resolvedRightBounds = Self.minimumRightSidebarWidth...maxRightWidth
+                    let requestedRightSidebarWidth = layout.preferredRightSidebarWidth ?? Self.defaultRightSidebarWidth
+                    resolvedRightWidth = Self.clamp(
+                        requestedRightSidebarWidth,
+                        min: resolvedRightBounds.lowerBound,
+                        max: resolvedRightBounds.upperBound
+                    )
+                } else {
+                    resolvedShowsRightSidebar = false
+                    continue
+                }
+            } else {
+                resolvedRightBounds = Self.minimumRightSidebarWidth...Self.minimumRightSidebarWidth
+                resolvedRightWidth = 0
+            }
 
             if resolvedShowsPreview {
-                let maxPreviewWidth = contentWidth - leftWidth - rightWidth - Self.minimumMainWidthForCompression
+                let maxPreviewWidth = contentWidth - resolvedLeftWidth - resolvedRightWidth - Self.minimumMainWidthForCompression
                 if maxPreviewWidth >= Self.minimumPreviewWidth {
                     let defaultPreviewWidth = Self.clamp(
                         contentWidth * 0.30,
@@ -973,8 +1104,6 @@ private struct ShellMetrics {
                     } else {
                         resolvedShowsPreview = false
                     }
-                    resolvedPreviewBounds = Self.minimumPreviewWidth...Self.minimumPreviewWidth
-                    resolvedPreviewWidth = 0
                     continue
                 }
             } else {
@@ -982,7 +1111,7 @@ private struct ShellMetrics {
                 resolvedPreviewWidth = 0
             }
 
-            resolvedMainWidth = contentWidth - leftWidth - rightWidth - resolvedPreviewWidth
+            resolvedMainWidth = contentWidth - resolvedLeftWidth - resolvedRightWidth - resolvedPreviewWidth
             if resolvedMainWidth >= Self.minimumMainWidthForCompression {
                 break
             }
@@ -1004,10 +1133,12 @@ private struct ShellMetrics {
         showsLeftSidebar = resolvedShowsLeftSidebar
         showsPreview = resolvedShowsPreview
         showsRightSidebar = resolvedShowsRightSidebar
-        leftSidebarWidth = resolvedShowsLeftSidebar ? Self.leftSidebarMaxWidth : 0
+        leftSidebarWidth = resolvedLeftWidth
+        leftSidebarWidthBounds = resolvedLeftBounds
         previewWidth = resolvedPreviewWidth
         previewWidthBounds = resolvedPreviewBounds
-        rightSidebarWidth = resolvedShowsRightSidebar ? Self.rightSidebarMaxWidth : 0
+        rightSidebarWidth = resolvedRightWidth
+        rightSidebarWidthBounds = resolvedRightBounds
         mainWidth = max(resolvedMainWidth, Self.absoluteMinimumMainWidth)
     }
 

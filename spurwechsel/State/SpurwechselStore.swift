@@ -105,6 +105,7 @@ final class SpurwechselAppStore: ObservableObject {
 
     let dependencies: AppDependencies
     let configStore: ProjectConfigStore
+    let uiStateStore: UIStateStore
     let importURLsProvider: () -> [URL]?
     let applicationQuitHandler: @MainActor () -> Void
     let gitService: GitRepositoryServicing
@@ -136,6 +137,7 @@ final class SpurwechselAppStore: ObservableObject {
         )
         self.dependencies = resolvedDependencies
         self.configStore = resolvedDependencies.configStore
+        self.uiStateStore = resolvedDependencies.uiStateStore
         self.gitService = resolvedDependencies.gitService
         self.importURLsProvider = resolvedDependencies.importURLsProvider
         self.applicationQuitHandler = applicationQuitHandler
@@ -143,9 +145,14 @@ final class SpurwechselAppStore: ObservableObject {
         self.vscodeServerRuntime = resolvedDependencies.vscodeServerRuntime
 
         let loadResult = self.configStore.loadResultEnsuringManagedFiles()
+        let persistedUIState = self.uiStateStore.load()
+        let resolvedLayout = Self.initialLayout(
+            explicitLayout: layout,
+            persistedUIState: persistedUIState
+        )
         let loadedProjects = projects ?? ProjectsState.fromImportedProjects([])
         self.shellStore = ShellStore(
-            layout: layout ?? PreviewFixtures.layoutState,
+            layout: resolvedLayout,
             configNotification: Self.makeConfigNotification(
                 diagnostics: loadResult.diagnostics,
                 configURL: self.configStore.configURL
@@ -238,6 +245,20 @@ final class SpurwechselAppStore: ObservableObject {
             return path
         }
         return path.replacingOccurrences(of: homeDirectory, with: "~")
+    }
+
+    private static func initialLayout(
+        explicitLayout: AppLayoutState?,
+        persistedUIState: UIStateFile
+    ) -> AppLayoutState {
+        var layout = explicitLayout ?? PreviewFixtures.layoutState
+        if let leftWidth = persistedUIState.layout.preferredLeftSidebarWidth {
+            layout.preferredLeftSidebarWidth = CGFloat(leftWidth)
+        }
+        if let rightWidth = persistedUIState.layout.preferredRightSidebarWidth {
+            layout.preferredRightSidebarWidth = CGFloat(rightWidth)
+        }
+        return layout
     }
 
 }

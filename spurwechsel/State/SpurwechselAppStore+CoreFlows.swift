@@ -105,6 +105,16 @@ extension SpurwechselAppStore {
         coordinator.shortcutBinding(for: command)
     }
 
+    func handleKeyDownEvent(
+        _ event: NSEvent,
+        focusedSurfaceSlot: SurfaceSlot?
+    ) -> KeyDownInterceptResult {
+        coordinator.handleKeyDownEvent(
+            event,
+            focusedSurfaceSlot: focusedSurfaceSlot
+        )
+    }
+
     @discardableResult
     func handleGlobalShortcutEvent(_ event: NSEvent) -> Bool {
         coordinator.handleGlobalShortcutEvent(event)
@@ -129,11 +139,30 @@ extension SpurwechselAppStore {
         coordinator.setPreferredPreviewWidth(width, allowedRange: allowedRange)
     }
 
+    func setPreferredLeftSidebarWidth(
+        _ width: CGFloat,
+        allowedRange: ClosedRange<CGFloat>
+    ) {
+        coordinator.setPreferredLeftSidebarWidth(width, allowedRange: allowedRange)
+    }
+
+    func setPreferredRightSidebarWidth(
+        _ width: CGFloat,
+        allowedRange: ClosedRange<CGFloat>
+    ) {
+        coordinator.setPreferredRightSidebarWidth(width, allowedRange: allowedRange)
+    }
+
+    func persistUIState() {
+        coordinator.persistUIState()
+    }
+
     func toggleTheme() { coordinator.toggleTheme() }
     func selectMainView(_ view: MainViewKind) { coordinator.selectMainView(view) }
     func selectPreviewView(_ view: PreviewViewKind) { coordinator.selectPreviewView(view) }
     func selectWorkspace(_ selection: WorkspaceSelection) { coordinator.selectWorkspace(selection) }
     func toggleProjectCollapse(_ projectID: UUID) { coordinator.toggleProjectCollapse(projectID) }
+    func toggleSectionCollapse(_ sectionID: String) { coordinator.toggleSectionCollapse(sectionID) }
 
     func openCommandBar(
         projectContextID: UUID? = nil,

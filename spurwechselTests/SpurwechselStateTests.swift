@@ -10,6 +10,16 @@ final class SpurwechselStateTests: XCTestCase {
         XCTAssertNil(layout.preferredPreviewWidth)
     }
 
+    func testPreferredLeftSidebarWidthStartsUnset() {
+        let layout = AppLayoutState()
+        XCTAssertNil(layout.preferredLeftSidebarWidth)
+    }
+
+    func testPreferredRightSidebarWidthStartsUnset() {
+        let layout = AppLayoutState()
+        XCTAssertNil(layout.preferredRightSidebarWidth)
+    }
+
     func testPreferredPreviewWidthClampsToAllowedRange() {
         var layout = AppLayoutState()
 
@@ -33,6 +43,32 @@ final class SpurwechselStateTests: XCTestCase {
         layout.togglePreview()
 
         XCTAssertEqual(layout.preferredPreviewWidth, 444)
+    }
+
+    func testPreferredLeftSidebarWidthClampsToAllowedRange() {
+        var layout = AppLayoutState()
+
+        layout.setPreferredLeftSidebarWidth(200, allowedRange: 240...480)
+        XCTAssertEqual(layout.preferredLeftSidebarWidth, 240)
+
+        layout.setPreferredLeftSidebarWidth(312, allowedRange: 240...480)
+        XCTAssertEqual(layout.preferredLeftSidebarWidth, 312)
+
+        layout.setPreferredLeftSidebarWidth(900, allowedRange: 240...480)
+        XCTAssertEqual(layout.preferredLeftSidebarWidth, 480)
+    }
+
+    func testPreferredRightSidebarWidthClampsToAllowedRange() {
+        var layout = AppLayoutState()
+
+        layout.setPreferredRightSidebarWidth(180, allowedRange: 220...420)
+        XCTAssertEqual(layout.preferredRightSidebarWidth, 220)
+
+        layout.setPreferredRightSidebarWidth(300, allowedRange: 220...420)
+        XCTAssertEqual(layout.preferredRightSidebarWidth, 300)
+
+        layout.setPreferredRightSidebarWidth(900, allowedRange: 220...420)
+        XCTAssertEqual(layout.preferredRightSidebarWidth, 420)
     }
 
     func testLayoutToggleKeepsPreviewSelectionPerView() {
@@ -190,6 +226,56 @@ final class SpurwechselStateTests: XCTestCase {
         XCTAssertEqual(state.sessions(for: .project(PreviewFixtures.tiltrunProject.id)).count, 1)
         XCTAssertEqual(newSession.status, .launching)
         XCTAssertEqual(newSession.launchCommand, "codex")
+    }
+
+    func testAgentStateUpdateTerminalTitleRenamesSessionFromNonEmptyTitle() {
+        let project = Project(name: "Repo", branch: "main", path: "/tmp/repo")
+        let session = AgentSession(
+            workspaceSelection: .project(project.id),
+            name: "codex-1",
+            status: .running,
+            launcherName: "codex",
+            launchCommand: "codex",
+            workingDirectory: "/tmp/repo",
+            terminalTitle: "codex",
+            lastActivity: "now",
+            exitCode: nil
+        )
+        var state = AgentState(
+            sessions: [session],
+            selectedSessionID: session.id,
+            nextAgentCount: 2
+        )
+
+        state.updateTerminalTitle(for: session.id, title: "  agent: checkout-flow  \n")
+
+        XCTAssertEqual(state.sessions.first?.terminalTitle, "  agent: checkout-flow  \n")
+        XCTAssertEqual(state.sessions.first?.name, "agent: checkout-flow")
+    }
+
+    func testAgentStateUpdateTerminalTitleIgnoresEmptyNameUpdate() {
+        let project = Project(name: "Repo", branch: "main", path: "/tmp/repo")
+        let session = AgentSession(
+            workspaceSelection: .project(project.id),
+            name: "agent: checkout-flow",
+            status: .running,
+            launcherName: "codex",
+            launchCommand: "codex",
+            workingDirectory: "/tmp/repo",
+            terminalTitle: "agent: checkout-flow",
+            lastActivity: "now",
+            exitCode: nil
+        )
+        var state = AgentState(
+            sessions: [session],
+            selectedSessionID: session.id,
+            nextAgentCount: 2
+        )
+
+        state.updateTerminalTitle(for: session.id, title: "   \n")
+
+        XCTAssertEqual(state.sessions.first?.terminalTitle, "   \n")
+        XCTAssertEqual(state.sessions.first?.name, "agent: checkout-flow")
     }
 
     @MainActor
@@ -649,6 +735,133 @@ final class SpurwechselStateTests: XCTestCase {
         ))
 
         XCTAssertTrue(store.handleGlobalShortcutEvent(commandK))
+        XCTAssertTrue(store.commandBar.isPresented)
+    }
+
+    @MainActor
+    func testTerminalFocusedUnboundCommandKeyRewritesToControlWhenEnabled() throws {
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("spurwechsel-terminal-shortcuts-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+        let configStore = ProjectConfigStore(
+            configURL: temporaryDirectory.appendingPathComponent("config.yaml")
+        )
+        try configStore.save(
+            UserConfigFile.explicit(from: SpurwechselConfig(
+                terminal: TerminalConfig(commandKeyMapsToControl: true)
+            ))
+        )
+
+        let store = SpurwechselStore(configStore: configStore)
+        store.selectMainView(.terminal)
+
+        let commandU = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 3,
+            windowNumber: 0,
+            context: nil,
+            characters: "u",
+            charactersIgnoringModifiers: "u",
+            isARepeat: false,
+            keyCode: 32
+        ))
+
+        let result = store.handleKeyDownEvent(commandU, focusedSurfaceSlot: .main)
+        switch result {
+        case let .replace(replacement):
+            XCTAssertTrue(replacement.modifierFlags.contains(.control))
+            XCTAssertFalse(replacement.modifierFlags.contains(.command))
+        case .passThrough, .consume:
+            XCTFail("Expected replacement key event while terminal is focused")
+        }
+        XCTAssertFalse(store.commandBar.isPresented)
+    }
+
+    @MainActor
+    func testTerminalFocusedBoundCommandShortcutStillConsumesWhenRemapEnabled() throws {
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("spurwechsel-terminal-bound-shortcuts-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+        let configStore = ProjectConfigStore(
+            configURL: temporaryDirectory.appendingPathComponent("config.yaml")
+        )
+        try configStore.save(
+            UserConfigFile.explicit(from: SpurwechselConfig(
+                terminal: TerminalConfig(commandKeyMapsToControl: true)
+            ))
+        )
+
+        let store = SpurwechselStore(configStore: configStore)
+        store.selectMainView(.terminal)
+
+        let commandK = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 4,
+            windowNumber: 0,
+            context: nil,
+            characters: "k",
+            charactersIgnoringModifiers: "k",
+            isARepeat: false,
+            keyCode: 40
+        ))
+
+        let result = store.handleKeyDownEvent(commandK, focusedSurfaceSlot: .main)
+        switch result {
+        case .consume:
+            break
+        case .passThrough, .replace:
+            XCTFail("Expected command shortcut to be consumed while terminal is focused")
+        }
+        XCTAssertTrue(store.commandBar.isPresented)
+    }
+
+    @MainActor
+    func testVSCodeFocusedCommandShortcutStillConsumesWhenRemapEnabled() throws {
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("spurwechsel-vscode-shortcuts-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+        let configStore = ProjectConfigStore(
+            configURL: temporaryDirectory.appendingPathComponent("config.yaml")
+        )
+        try configStore.save(
+            UserConfigFile.explicit(from: SpurwechselConfig(
+                terminal: TerminalConfig(commandKeyMapsToControl: true)
+            ))
+        )
+
+        let store = SpurwechselStore(configStore: configStore)
+        store.selectMainView(.vscode)
+
+        let commandK = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 5,
+            windowNumber: 0,
+            context: nil,
+            characters: "k",
+            charactersIgnoringModifiers: "k",
+            isARepeat: false,
+            keyCode: 40
+        ))
+
+        let result = store.handleKeyDownEvent(commandK, focusedSurfaceSlot: .main)
+        switch result {
+        case .consume:
+            break
+        case .passThrough, .replace:
+            XCTFail("Expected command shortcut to be consumed while VSCode is focused")
+        }
         XCTAssertTrue(store.commandBar.isPresented)
     }
 

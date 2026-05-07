@@ -26,8 +26,53 @@ struct ContextSidebarView: View {
     let selectSession: (UUID) -> Void
 
     private var groupedAgentNodes: [(WorkspaceNode, [AgentSession])] {
-        workspaceStore.projects.orderedNodes.map { node in
-            (node, agentStore.agents.sessions(for: node.selection))
+        let sessionsBySelection = Dictionary(grouping: agentStore.agents.sessions, by: \.workspaceSelection)
+        let selectedSelection = workspaceStore.projects.selection
+
+        var visibleNodes = workspaceStore.projects.orderedNodes.filter { node in
+            let hasAgents = !(sessionsBySelection[node.selection] ?? []).isEmpty
+            return hasAgents || node.selection == selectedSelection
+        }
+
+        if !visibleNodes.contains(where: { $0.selection == selectedSelection }),
+           let selectedNode = workspaceNode(for: selectedSelection) {
+            visibleNodes.append(selectedNode)
+        }
+
+        return visibleNodes.map { node in
+            (node, sessionsBySelection[node.selection] ?? [])
+        }
+    }
+
+    private func workspaceNode(for selection: WorkspaceSelection) -> WorkspaceNode? {
+        switch selection {
+        case let .project(projectID):
+            guard let project = workspaceStore.projects.project(id: projectID) else {
+                return nil
+            }
+            return WorkspaceNode(
+                selection: .project(project.id),
+                kind: .project,
+                parentProjectID: project.id,
+                title: project.name,
+                branchName: project.branch,
+                depth: 0,
+                hasChildren: !project.worktrees.isEmpty
+            )
+        case let .worktree(worktreeID):
+            guard let project = workspaceStore.projects.projectForWorktree(id: worktreeID),
+                  let worktree = project.worktrees.first(where: { $0.id == worktreeID }) else {
+                return nil
+            }
+            return WorkspaceNode(
+                selection: .worktree(worktree.id),
+                kind: .worktree,
+                parentProjectID: project.id,
+                title: worktree.name,
+                branchName: worktree.branch,
+                depth: 1,
+                hasChildren: false
+            )
         }
     }
 
@@ -36,6 +81,7 @@ struct ContextSidebarView: View {
             AgentSidebarView(
                 shellStore: shellStore,
                 groupedAgentNodes: groupedAgentNodes,
+                selectedWorkspaceSelection: workspaceStore.projects.selection,
                 selectedSessionID: agentStore.agents.selectedSessionID,
                 addAgent: addAgent,
                 selectSession: selectSession
@@ -50,6 +96,7 @@ struct ContextSidebarView: View {
 private struct AgentSidebarView: View {
     @ObservedObject var shellStore: ShellStore
     let groupedAgentNodes: [(WorkspaceNode, [AgentSession])]
+    let selectedWorkspaceSelection: WorkspaceSelection
     let selectedSessionID: UUID?
     let addAgent: (WorkspaceSelection) -> Void
     let selectSession: (UUID) -> Void
@@ -71,6 +118,7 @@ private struct AgentSidebarView: View {
                             node: node,
                             sessions: sessions,
                             theme: theme,
+                            isSelected: node.selection == selectedWorkspaceSelection,
                             selectedSessionID: selectedSessionID,
                             addAgent: addAgent,
                             selectSession: selectSession
@@ -92,6 +140,7 @@ private struct AgentGroupView: View {
     let node: WorkspaceNode
     let sessions: [AgentSession]
     let theme: SpurTheme
+    let isSelected: Bool
     let selectedSessionID: UUID?
     let addAgent: (WorkspaceSelection) -> Void
     let selectSession: (UUID) -> Void
@@ -106,9 +155,11 @@ private struct AgentGroupView: View {
                     .foregroundStyle(theme.foreground)
                 Spacer()
                 hoverPlusSlot
-                Text(node.branchName)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(theme.foregroundDim)
+                if !node.branchName.isEmpty {
+                    Text(node.branchName)
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(theme.foregroundDim)
+                }
             }
             .padding(.horizontal, AgentSidebarDensity.groupHorizontalPadding)
             .frame(minHeight: AgentSidebarDensity.groupHeaderMinHeight)
@@ -129,10 +180,14 @@ private struct AgentGroupView: View {
         .background(
             RoundedRectangle(cornerRadius: AgentSidebarDensity.groupCornerRadius, style: .continuous)
                 .fill(theme.panelMuted)
+                .overlay(
+                    RoundedRectangle(cornerRadius: AgentSidebarDensity.groupCornerRadius, style: .continuous)
+                        .fill(isSelected ? theme.selection.opacity(0.12) : Color.clear)
+                )
         )
         .overlay(
             RoundedRectangle(cornerRadius: AgentSidebarDensity.groupCornerRadius, style: .continuous)
-                .stroke(theme.border, lineWidth: 1)
+                .stroke(isSelected ? theme.selection.opacity(0.32) : Color.clear, lineWidth: isSelected ? 1 : 0)
         )
     }
 
@@ -203,12 +258,12 @@ private struct AgentRowView: View {
             )
             .overlay(
                 RoundedRectangle(cornerRadius: AgentSidebarDensity.rowCornerRadius, style: .continuous)
-                    .stroke(theme.border, lineWidth: isSelected ? 0 : 1)
+                    .stroke(Color.clear, lineWidth: 0)
             )
         }
         .buttonStyle(.plain)
         .padding(.horizontal, AgentSidebarDensity.groupHorizontalPadding)
-        .accessibilityIdentifier("agents.session.\(session.name.accessibilitySlug)")
+        .accessibilityIdentifier("agents.session.\(session.id.uuidString)")
     }
 
     private var primaryModelName: String {

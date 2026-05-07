@@ -96,11 +96,38 @@ shortcuts:
   - command: create-default-agent
     key: t
     modifiers: [command]
+  - command: select-next-agent
+    key: j
+    modifiers: [command, shift]
+  - command: select-previous-agent
+    key: k
+    modifiers: [command, shift]
+  - command: select-project
+    key: p
+    modifiers: [command]
+  - command: delete-agent
+    key: w
+    modifiers: [command]
+  - command: toggle-preview-pane
+    key: s
+    modifiers: [command, shift]
+  - command: open-agent-view
+    key: u
+    modifiers: [command, shift]
+  - command: open-terminal-view
+    key: i
+    modifiers: [command, shift]
+  - command: open-vscode-view
+    key: o
+    modifiers: [command, shift]
+
+terminal:
+  commandKeyMapsToControl: false
 
 theme: {}
 ```
 
-`projects` stores repo roots only. Worktrees come from git state. `theme: {}` means built-in light and dark palettes stay active until you override tokens.
+`projects` stores repo roots only. Worktrees come from git state. `terminal.commandKeyMapsToControl` defaults to `false` and can remap `Command+<key>` to `Control+<key>` for terminal-backed surfaces. `theme: {}` means built-in light and dark palettes stay active until you override tokens.
 
 <details>
 <summary>Default theme values</summary>

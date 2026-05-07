@@ -122,10 +122,12 @@ struct AgentMainView: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(theme.foregroundMuted)
                         .lineLimit(1)
-                    Text(workspace.branchName)
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(theme.foregroundDim)
-                        .lineLimit(1)
+                    if !workspace.branchName.isEmpty {
+                        Text(workspace.branchName)
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundStyle(theme.foregroundDim)
+                            .lineLimit(1)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
@@ -136,6 +138,13 @@ struct AgentMainView: View {
             }
             .font(.system(size: 11, weight: .medium))
             .foregroundStyle(theme.foregroundMuted)
+
+            if session.showsWarpPluginWarning {
+                WarpPluginWarningBadge(theme: theme) { text in
+                    store.terminalController(for: session.id)?.sendText(text)
+                }
+                    .fixedSize()
+            }
 
             StatusBadgeView(status: session.status, theme: theme)
                 .fixedSize()
@@ -172,4 +181,113 @@ struct AgentMainView: View {
         .clipShape(RoundedRectangle(cornerRadius: AgentMainDensity.railCornerRadius, style: .continuous))
     }
 
+}
+
+private struct WarpPluginWarningBadge: View {
+    let theme: SpurTheme
+    let onInsertInstructions: (String) -> Void
+    @State private var showsPopover = false
+
+    var body: some View {
+        Button {
+            showsPopover.toggle()
+        } label: {
+            Image(systemName: "exclamationmark.triangle.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(theme.warning)
+            .padding(.horizontal, 9)
+            .padding(.vertical, 6)
+            .background(theme.warning.opacity(0.14))
+            .overlay(
+                Capsule()
+                    .stroke(theme.warning.opacity(0.38), lineWidth: 1)
+            )
+            .clipShape(Capsule())
+            .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering in
+            if hovering {
+                showsPopover = true
+            }
+        }
+        .popover(isPresented: $showsPopover, arrowEdge: .bottom) {
+            VStack(alignment: .leading, spacing: SpurSpacing.sm) {
+                Text("OpenCode rich status unavailable")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(theme.foreground)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("Install Warp OpenCode plugin, then restart this agent.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(theme.foregroundMuted)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("1. Add `@warp-dot-dev/opencode-warp` to `plugin` in `opencode.json`.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(theme.foregroundMuted)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("2. Configure workspace `./opencode.json` or global `~/.config/opencode/opencode.json`.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(theme.foregroundMuted)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Text("3. Restart agent to enable rich status events.")
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(theme.foregroundMuted)
+                    .lineLimit(nil)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                Button {
+                    onInsertInstructions(Self.globalInstallInstructions)
+                    showsPopover = false
+                } label: {
+                    Label("Insert Instructions Into Agent", systemImage: "arrow.down.doc")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(theme.warning)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 7)
+                        .background(theme.warning.opacity(0.12))
+                        .overlay(
+                            Capsule()
+                                .stroke(theme.warning.opacity(0.36), lineWidth: 1)
+                        )
+                        .clipShape(Capsule())
+                }
+                .buttonStyle(.plain)
+                .focusEffectDisabled()
+                .focusable(false)
+            }
+            .frame(width: 340, alignment: .leading)
+            .padding(12)
+            .spurPanel(
+                theme: theme,
+                fill: theme.panel,
+                stroke: theme.border,
+                radius: SpurRadius.card,
+                shadowOpacity: 0.2
+            )
+            .accessibilityIdentifier("agent.header.warp-warning.popover")
+        }
+        .accessibilityIdentifier("agent.header.warp-warning.badge")
+    }
+
+    private static let globalInstallInstructions = """
+    Install Warp OpenCode plugin globally for rich status events.
+
+    Steps:
+    1. Ensure directory exists: ~/.config/opencode
+    2. Edit file: ~/.config/opencode/opencode.json
+    3. In JSON key "plugin" (array), add string "@warp-dot-dev/opencode-warp".
+    4. Preserve existing plugin entries. Do not remove unrelated config.
+    5. If "plugin" key missing, create it as array and include "@warp-dot-dev/opencode-warp".
+    6. Save valid JSON.
+
+    After installation:
+    - Tell me exactly what changed.
+    - Remind me to restart OpenCode agent session in Spurwechsel so rich status becomes active.
+    """
 }

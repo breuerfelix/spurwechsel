@@ -121,10 +121,12 @@ struct AgentConfigRecord: Equatable, Hashable {
 struct ProjectRecord: Equatable, Hashable {
     var path: String
     var name: String?
+    var sections: [String]
 
-    init(path: String, name: String? = nil) {
+    init(path: String, name: String? = nil, sections: [String] = []) {
         self.path = path
         self.name = name
+        self.sections = sections
     }
 
     var displayName: String {
@@ -132,6 +134,26 @@ struct ProjectRecord: Equatable, Hashable {
             return name
         }
         return URL(fileURLWithPath: path).lastPathComponent
+    }
+}
+
+struct ProjectSectionRecord: Equatable, Hashable {
+    static let fallbackID = "other"
+
+    var id: String
+    var name: String?
+
+    init(id: String, name: String? = nil) {
+        self.id = id
+        self.name = name
+    }
+
+    var displayName: String {
+        let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let trimmed, !trimmed.isEmpty {
+            return trimmed
+        }
+        return id
     }
 }
 
@@ -153,6 +175,14 @@ struct CodeServerConfig: Equatable, Hashable {
             return defaultPort
         }
         return port
+    }
+}
+
+struct TerminalConfig: Equatable, Hashable {
+    var commandKeyMapsToControl: Bool
+
+    init(commandKeyMapsToControl: Bool = false) {
+        self.commandKeyMapsToControl = commandKeyMapsToControl
     }
 }
 
@@ -335,30 +365,77 @@ struct SpurwechselConfig: Equatable {
             command: .createDefaultAgent,
             key: "t",
             modifiers: [.command]
+        ),
+        ShortcutRecord(
+            command: .selectNextAgent,
+            key: "j",
+            modifiers: [.command, .shift]
+        ),
+        ShortcutRecord(
+            command: .selectPreviousAgent,
+            key: "k",
+            modifiers: [.command, .shift]
+        ),
+        ShortcutRecord(
+            command: .selectProject,
+            key: "p",
+            modifiers: [.command]
+        ),
+        ShortcutRecord(
+            command: .deleteAgent,
+            key: "w",
+            modifiers: [.command]
+        ),
+        ShortcutRecord(
+            command: .togglePreviewPane,
+            key: "s",
+            modifiers: [.command, .shift]
+        ),
+        ShortcutRecord(
+            command: .openAgentView,
+            key: "u",
+            modifiers: [.command, .shift]
+        ),
+        ShortcutRecord(
+            command: .openTerminalView,
+            key: "i",
+            modifiers: [.command, .shift]
+        ),
+        ShortcutRecord(
+            command: .openVSCodeView,
+            key: "o",
+            modifiers: [.command, .shift]
         )
     ]
     static let defaultTheme = ThemeSet.default
+    static let defaultTerminal = TerminalConfig()
 
     var version: Int
     var codeServer: CodeServerConfig
+    var sections: [ProjectSectionRecord]
     var projects: [ProjectRecord]
     var agents: [AgentConfigRecord]
     var shortcuts: [ShortcutRecord]
+    var terminal: TerminalConfig
     var theme: ThemeSet
 
     init(
         version: Int = SpurwechselConfig.currentVersion,
         codeServer: CodeServerConfig = CodeServerConfig(),
+        sections: [ProjectSectionRecord] = [],
         projects: [ProjectRecord] = [],
         agents: [AgentConfigRecord] = SpurwechselConfig.defaultAgents,
         shortcuts: [ShortcutRecord] = SpurwechselConfig.defaultShortcuts,
+        terminal: TerminalConfig = SpurwechselConfig.defaultTerminal,
         theme: ThemeSet = SpurwechselConfig.defaultTheme
     ) {
         self.version = version
         self.codeServer = codeServer
+        self.sections = sections
         self.projects = projects
         self.agents = agents
         self.shortcuts = shortcuts
+        self.terminal = terminal
         self.theme = theme
     }
 
@@ -384,19 +461,33 @@ struct SpurwechselConfig: Equatable {
                     ResolvedShortcutBinding(record: record).map { ($0.command, $0) }
                 }
         )
-        var bindingsByCommand = fallbackByCommand
-
+        var explicitBindings: [ResolvedShortcutBinding] = []
         for record in shortcuts {
             guard let binding = ResolvedShortcutBinding(record: record) else {
                 continue
             }
-            bindingsByCommand[binding.command] = binding
+            explicitBindings.append(binding)
+        }
+        let explicitByCommand = Dictionary(
+            uniqueKeysWithValues: explicitBindings.map { ($0.command, $0) }
+        )
+        let explicitSignatures = Set(explicitBindings.map(\.signature))
+
+        func binding(for command: CommandID) -> ResolvedShortcutBinding? {
+            if let explicitBinding = explicitByCommand[command] {
+                return explicitBinding
+            }
+            guard let fallbackBinding = fallbackByCommand[command],
+                  !explicitSignatures.contains(fallbackBinding.signature) else {
+                return nil
+            }
+            return fallbackBinding
         }
 
         var consumedSignatures = Set<String>()
         var resolved: [ResolvedShortcutBinding] = []
         for command in CommandID.allCases {
-            guard let binding = bindingsByCommand[command] else {
+            guard let binding = binding(for: command) else {
                 continue
             }
             guard !consumedSignatures.contains(binding.signature) else {

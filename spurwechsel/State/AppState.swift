@@ -428,6 +428,8 @@ struct AppLayoutState: Equatable {
     var previewConfigurations: [MainViewKind: MainViewPreviewConfiguration] = [:]
     var preferredFocusedSlotByMainView: [MainViewKind: SurfaceSlot] = [:]
     var preferredPreviewWidth: CGFloat?
+    var preferredLeftSidebarWidth: CGFloat?
+    var preferredRightSidebarWidth: CGFloat?
     var showsLeftSidebar = true
     var showsRightSidebar = true
     var themeMode: ThemeMode = .dark
@@ -508,6 +510,20 @@ struct AppLayoutState: Equatable {
         preferredPreviewWidth = min(max(width, allowedRange.lowerBound), allowedRange.upperBound)
     }
 
+    mutating func setPreferredLeftSidebarWidth(
+        _ width: CGFloat,
+        allowedRange: ClosedRange<CGFloat>
+    ) {
+        preferredLeftSidebarWidth = min(max(width, allowedRange.lowerBound), allowedRange.upperBound)
+    }
+
+    mutating func setPreferredRightSidebarWidth(
+        _ width: CGFloat,
+        allowedRange: ClosedRange<CGFloat>
+    ) {
+        preferredRightSidebarWidth = min(max(width, allowedRange.lowerBound), allowedRange.upperBound)
+    }
+
     mutating func toggleTheme() {
         themeMode = themeMode == .dark ? .light : .dark
     }
@@ -560,8 +576,21 @@ enum WindowChromeLayoutResolver {
 }
 
 struct ProjectsState: Equatable {
+    static let fallbackSectionID = ProjectSectionRecord.fallbackID
+    static let fallbackSectionTitle = ProjectSectionRecord.fallbackID
+
+    struct SidebarSection: Identifiable, Equatable {
+        let id: String
+        let title: String
+        let projects: [Project]
+
+        var projectCount: Int { projects.count }
+    }
+
     var projects: [Project]
+    var configuredSections: [ProjectSectionRecord]
     var collapsedProjectIDs: Set<UUID>
+    var collapsedSectionIDs: Set<String>
     var selection: WorkspaceSelection
     var nextProjectCount: Int
     var nextWorktreeCount: Int
@@ -578,11 +607,24 @@ struct ProjectsState: Equatable {
         self.selection = selection
     }
 
-    mutating func replaceProjects(_ projects: [Project]) {
+    mutating func toggleSectionCollapse(_ sectionID: String) {
+        if collapsedSectionIDs.contains(sectionID) {
+            collapsedSectionIDs.remove(sectionID)
+        } else {
+            collapsedSectionIDs.insert(sectionID)
+        }
+    }
+
+    mutating func replaceProjects(
+        _ projects: [Project],
+        configuredSections: [ProjectSectionRecord]
+    ) {
         let previousSelection = selection
 
         self.projects = projects
+        self.configuredSections = configuredSections
         collapsedProjectIDs = collapsedProjectIDs.intersection(Set(projects.map(\.id)))
+        collapsedSectionIDs = collapsedSectionIDs.intersection(Set(sidebarSections.map(\.id)))
         nextProjectCount = max(nextProjectCount, projects.count + 1)
 
         if projects.contains(where: { $0.contains(previousSelection) }) {
@@ -620,6 +662,69 @@ struct ProjectsState: Equatable {
         collapsedProjectIDs.remove(projectID)
         selection = .worktree(worktree.id)
         return worktree
+    }
+
+    var sidebarSections: [SidebarSection] {
+        var groupedProjectsBySectionID: [String: [Project]] = [:]
+        for project in projects {
+            let sectionIDs = project.sectionIDs.isEmpty
+                ? [Self.fallbackSectionID]
+                : project.sectionIDs
+            for sectionID in sectionIDs {
+                groupedProjectsBySectionID[sectionID, default: []].append(project)
+            }
+        }
+
+        var sections: [SidebarSection] = []
+        var consumedSectionIDs = Set<String>()
+
+        for configuredSection in configuredSections {
+            guard let sectionProjects = groupedProjectsBySectionID[configuredSection.id],
+                  !sectionProjects.isEmpty else {
+                continue
+            }
+            consumedSectionIDs.insert(configuredSection.id)
+            sections.append(
+                SidebarSection(
+                    id: configuredSection.id,
+                    title: configuredSection.displayName,
+                    projects: sectionProjects
+                )
+            )
+        }
+
+        let remainingSectionIDs = groupedProjectsBySectionID.keys
+            .filter { $0 != Self.fallbackSectionID && !consumedSectionIDs.contains($0) }
+            .sorted { lhs, rhs in
+                lhs.localizedStandardCompare(rhs) == .orderedAscending
+            }
+
+        for sectionID in remainingSectionIDs {
+            guard let sectionProjects = groupedProjectsBySectionID[sectionID],
+                  !sectionProjects.isEmpty else {
+                continue
+            }
+            sections.append(
+                SidebarSection(
+                    id: sectionID,
+                    title: sectionID,
+                    projects: sectionProjects
+                )
+            )
+        }
+
+        if let fallbackProjects = groupedProjectsBySectionID[Self.fallbackSectionID],
+           !fallbackProjects.isEmpty {
+            sections.append(
+                SidebarSection(
+                    id: Self.fallbackSectionID,
+                    title: Self.fallbackSectionTitle,
+                    projects: fallbackProjects
+                )
+            )
+        }
+
+        return sections
     }
 
     var orderedNodes: [WorkspaceNode] {
@@ -701,7 +806,9 @@ struct ProjectsState: Equatable {
     static func fromImportedProjects(_ projects: [Project]) -> ProjectsState {
         ProjectsState(
             projects: projects,
+            configuredSections: [],
             collapsedProjectIDs: [],
+            collapsedSectionIDs: [],
             selection: projects.first.map { .project($0.id) } ?? .project(UUID()),
             nextProjectCount: projects.count + 1,
             nextWorktreeCount: 1
@@ -738,18 +845,22 @@ struct AgentState: Equatable {
         to selection: WorkspaceSelection,
         launcherName: String,
         launchCommand: String,
-        workingDirectory: String
+        workingDirectory: String,
+        kind: AgentKind = .unknown,
+        expectsRichStatus: Bool = false
     ) -> AgentSession {
         let session = AgentSession(
             workspaceSelection: selection,
             name: "\(launcherName)-\(nextAgentCount)",
+            kind: kind,
             status: .launching,
             launcherName: launcherName,
             launchCommand: launchCommand,
             workingDirectory: workingDirectory,
             terminalTitle: launcherName,
             lastActivity: "now",
-            exitCode: nil
+            exitCode: nil,
+            expectsRichStatus: expectsRichStatus
         )
         nextAgentCount += 1
         sessions.append(session)
@@ -757,11 +868,29 @@ struct AgentState: Equatable {
         return session
     }
 
-    mutating func updateStatus(for sessionID: UUID, status: AgentSessionStatus) {
+    mutating func updateStatus(
+        for sessionID: UUID,
+        status: AgentSessionStatus,
+        detail: String? = nil
+    ) {
         guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else {
             return
         }
         sessions[index].status = status
+        sessions[index].statusDetail = detail
+    }
+
+    mutating func updateRichStatusMetadata(
+        for sessionID: UUID,
+        pluginVersion: String?
+    ) {
+        guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else {
+            return
+        }
+        sessions[index].hasRichStatus = true
+        if let pluginVersion {
+            sessions[index].pluginVersion = pluginVersion
+        }
     }
 
     mutating func updateTerminalTitle(for sessionID: UUID, title: String) {
@@ -769,6 +898,10 @@ struct AgentState: Equatable {
             return
         }
         sessions[index].terminalTitle = title
+        let resolvedName = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !resolvedName.isEmpty {
+            sessions[index].name = resolvedName
+        }
     }
 
     mutating func updateExitCode(for sessionID: UUID, exitCode: Int32?) {

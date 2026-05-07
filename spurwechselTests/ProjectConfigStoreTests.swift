@@ -36,9 +36,10 @@ final class ProjectConfigStoreTests: XCTestCase {
         XCTAssertEqual(loadedConfig.projects, initialConfig.projects)
         XCTAssertEqual(loadedConfig.agents, initialConfig.agents)
         XCTAssertEqual(loadedConfig.shortcuts, initialConfig.shortcuts)
+        XCTAssertEqual(loadedConfig.terminal, initialConfig.terminal)
         XCTAssertEqual(loadedConfig.resolvedAgents.map(\.displayName), ["opencode", "claude", "codex"])
         XCTAssertEqual(loadedConfig.resolvedDefaultAgent.displayName, "opencode")
-        XCTAssertEqual(loadedConfig.resolvedShortcuts.count, 1)
+        XCTAssertEqual(loadedConfig.resolvedShortcuts.count, SpurwechselConfig.defaultShortcuts.count)
         XCTAssertEqual(
             loadedConfig.resolvedShortcuts.first?.command,
             .toggleCommandBar
@@ -66,6 +67,8 @@ final class ProjectConfigStoreTests: XCTestCase {
         let agentsContents = try String(contentsOf: agentsURL, encoding: .utf8)
         XCTAssertTrue(agentsContents.contains("# Spurwechsel Agent Config Guide"))
         XCTAssertTrue(agentsContents.contains("This file is managed by Spurwechsel."))
+        XCTAssertTrue(agentsContents.contains("## Default shortcut bindings"))
+        XCTAssertTrue(agentsContents.contains("`⌘P`: `select-project`"))
         XCTAssertTrue(agentsContents.contains("## Supported shortcut command IDs"))
     }
 
@@ -349,6 +352,57 @@ final class ProjectConfigStoreTests: XCTestCase {
         XCTAssertEqual(loadedConfig.codeServer.resolvedPort, 9091)
     }
 
+    func testConfigRoundTripPreservesTerminalCommandKeyMapping() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let customConfig = SpurwechselConfig(
+            terminal: TerminalConfig(commandKeyMapsToControl: true)
+        )
+
+        try configStore.save(UserConfigFile.explicit(from: customConfig))
+        let loadedConfig = try configStore.load()
+
+        XCTAssertTrue(loadedConfig.terminal.commandKeyMapsToControl)
+    }
+
+    func testLoadConfigWithoutTerminalSectionFallsBackToDefaultTerminalMapping() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        projects:
+          - path: "\(temporaryDirectoryURL.path)"
+            name: "tmp"
+        agents:
+          - name: "claude"
+            command: "claude"
+            default: true
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadedConfig = try configStore.load()
+
+        XCTAssertFalse(loadedConfig.terminal.commandKeyMapsToControl)
+    }
+
+    func testLoadResultWithInvalidTerminalSectionReportsDiagnosticAndUsesDefaults() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        terminal:
+          commandKeyMapsToControl: "yes"
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadResult = configStore.loadResult()
+
+        XCTAssertFalse(loadResult.config.terminal.commandKeyMapsToControl)
+        XCTAssertTrue(loadResult.diagnostics.contains {
+            $0.message.contains("could not be parsed")
+        })
+    }
+
     func testLoadConfigWithoutShortcutSectionFallsBackToDefaultResolvedShortcut() throws {
         let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
         let configStore = ProjectConfigStore(configURL: configURL)
@@ -493,6 +547,24 @@ final class ProjectConfigStoreTests: XCTestCase {
         XCTAssertTrue(loadResult.diagnostics.contains {
             $0.message.contains("unsupported value 'hyper'")
         })
+    }
+
+    func testExplicitShortcutSignatureOverridesConflictingDefaultShortcut() {
+        let config = SpurwechselConfig(
+            shortcuts: [
+                ShortcutRecord(
+                    command: .toggleLeftSidebar,
+                    key: "p",
+                    modifiers: [.command]
+                )
+            ]
+        )
+
+        XCTAssertEqual(
+            config.shortcutBinding(for: .toggleLeftSidebar),
+            ResolvedShortcutBinding(command: .toggleLeftSidebar, key: "p", modifiers: [.command])
+        )
+        XCTAssertNil(config.shortcutBinding(for: .selectProject))
     }
 
     func testImportedRecordsSkipDuplicatesAndNonDirectories() throws {

@@ -27,20 +27,26 @@ struct Project: Identifiable, Equatable, Hashable {
     var name: String
     var branch: String
     var path: String
+    var sectionIDs: [String]
     var worktrees: [Worktree]
+    var isGitRepository: Bool
 
     init(
         id: UUID = UUID(),
         name: String,
         branch: String,
         path: String = "",
-        worktrees: [Worktree] = []
+        sectionIDs: [String] = [],
+        worktrees: [Worktree] = [],
+        isGitRepository: Bool = true
     ) {
         self.id = id
         self.name = name
         self.branch = branch
         self.path = path
+        self.sectionIDs = sectionIDs
         self.worktrees = worktrees
+        self.isGitRepository = isGitRepository
     }
 
     func contains(_ selection: WorkspaceSelection) -> Bool {

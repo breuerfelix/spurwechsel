@@ -363,10 +363,12 @@ struct CommandPaletteOverlayView: View {
                     .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(isSelected ? theme.foreground : theme.foregroundMuted)
 
-                Text(subtitle)
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(theme.foregroundDim)
-                    .lineLimit(1)
+                if !subtitle.isEmpty {
+                    Text(subtitle)
+                        .font(.system(size: 12, weight: .medium))
+                        .foregroundStyle(theme.foregroundDim)
+                        .lineLimit(1)
+                }
             }
 
             Spacer(minLength: 0)
