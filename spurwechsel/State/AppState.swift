@@ -738,18 +738,22 @@ struct AgentState: Equatable {
         to selection: WorkspaceSelection,
         launcherName: String,
         launchCommand: String,
-        workingDirectory: String
+        workingDirectory: String,
+        kind: AgentKind = .unknown,
+        expectsRichStatus: Bool = false
     ) -> AgentSession {
         let session = AgentSession(
             workspaceSelection: selection,
             name: "\(launcherName)-\(nextAgentCount)",
+            kind: kind,
             status: .launching,
             launcherName: launcherName,
             launchCommand: launchCommand,
             workingDirectory: workingDirectory,
             terminalTitle: launcherName,
             lastActivity: "now",
-            exitCode: nil
+            exitCode: nil,
+            expectsRichStatus: expectsRichStatus
         )
         nextAgentCount += 1
         sessions.append(session)
@@ -757,11 +761,29 @@ struct AgentState: Equatable {
         return session
     }
 
-    mutating func updateStatus(for sessionID: UUID, status: AgentSessionStatus) {
+    mutating func updateStatus(
+        for sessionID: UUID,
+        status: AgentSessionStatus,
+        detail: String? = nil
+    ) {
         guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else {
             return
         }
         sessions[index].status = status
+        sessions[index].statusDetail = detail
+    }
+
+    mutating func updateRichStatusMetadata(
+        for sessionID: UUID,
+        pluginVersion: String?
+    ) {
+        guard let index = sessions.firstIndex(where: { $0.id == sessionID }) else {
+            return
+        }
+        sessions[index].hasRichStatus = true
+        if let pluginVersion {
+            sessions[index].pluginVersion = pluginVersion
+        }
     }
 
     mutating func updateTerminalTitle(for sessionID: UUID, title: String) {
