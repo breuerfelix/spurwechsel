@@ -32,6 +32,8 @@ Statuses:
 - `exited`
 - `failed`
 
+Terminated sessions are removed immediately using same cleanup path as manual `Remove Agent`, so `exited` and `failed` do not remain visible in session UI.
+
 ## Runtime Ownership
 `TerminalSessionRegistry` owns reusable terminal controllers by stable key:
 
@@ -73,6 +75,7 @@ Important behavior:
 Agent resources are released when:
 
 - user deletes session
+- agent process exits (success or failure)
 - workspace disappears after refresh
 - app terminates
 
