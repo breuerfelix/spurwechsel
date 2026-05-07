@@ -10,6 +10,16 @@ final class SpurwechselStateTests: XCTestCase {
         XCTAssertNil(layout.preferredPreviewWidth)
     }
 
+    func testPreferredLeftSidebarWidthStartsUnset() {
+        let layout = AppLayoutState()
+        XCTAssertNil(layout.preferredLeftSidebarWidth)
+    }
+
+    func testPreferredRightSidebarWidthStartsUnset() {
+        let layout = AppLayoutState()
+        XCTAssertNil(layout.preferredRightSidebarWidth)
+    }
+
     func testPreferredPreviewWidthClampsToAllowedRange() {
         var layout = AppLayoutState()
 
@@ -33,6 +43,32 @@ final class SpurwechselStateTests: XCTestCase {
         layout.togglePreview()
 
         XCTAssertEqual(layout.preferredPreviewWidth, 444)
+    }
+
+    func testPreferredLeftSidebarWidthClampsToAllowedRange() {
+        var layout = AppLayoutState()
+
+        layout.setPreferredLeftSidebarWidth(200, allowedRange: 240...480)
+        XCTAssertEqual(layout.preferredLeftSidebarWidth, 240)
+
+        layout.setPreferredLeftSidebarWidth(312, allowedRange: 240...480)
+        XCTAssertEqual(layout.preferredLeftSidebarWidth, 312)
+
+        layout.setPreferredLeftSidebarWidth(900, allowedRange: 240...480)
+        XCTAssertEqual(layout.preferredLeftSidebarWidth, 480)
+    }
+
+    func testPreferredRightSidebarWidthClampsToAllowedRange() {
+        var layout = AppLayoutState()
+
+        layout.setPreferredRightSidebarWidth(180, allowedRange: 220...420)
+        XCTAssertEqual(layout.preferredRightSidebarWidth, 220)
+
+        layout.setPreferredRightSidebarWidth(300, allowedRange: 220...420)
+        XCTAssertEqual(layout.preferredRightSidebarWidth, 300)
+
+        layout.setPreferredRightSidebarWidth(900, allowedRange: 220...420)
+        XCTAssertEqual(layout.preferredRightSidebarWidth, 420)
     }
 
     func testLayoutToggleKeepsPreviewSelectionPerView() {

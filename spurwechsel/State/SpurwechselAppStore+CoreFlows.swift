@@ -139,6 +139,24 @@ extension SpurwechselAppStore {
         coordinator.setPreferredPreviewWidth(width, allowedRange: allowedRange)
     }
 
+    func setPreferredLeftSidebarWidth(
+        _ width: CGFloat,
+        allowedRange: ClosedRange<CGFloat>
+    ) {
+        coordinator.setPreferredLeftSidebarWidth(width, allowedRange: allowedRange)
+    }
+
+    func setPreferredRightSidebarWidth(
+        _ width: CGFloat,
+        allowedRange: ClosedRange<CGFloat>
+    ) {
+        coordinator.setPreferredRightSidebarWidth(width, allowedRange: allowedRange)
+    }
+
+    func persistUIState() {
+        coordinator.persistUIState()
+    }
+
     func toggleTheme() { coordinator.toggleTheme() }
     func selectMainView(_ view: MainViewKind) { coordinator.selectMainView(view) }
     func selectPreviewView(_ view: PreviewViewKind) { coordinator.selectPreviewView(view) }

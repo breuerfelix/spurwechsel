@@ -5,6 +5,7 @@ import Foundation
 @MainActor
 struct AppDependencies {
     let configStore: ProjectConfigStore
+    let uiStateStore: UIStateStore
     let gitService: GitRepositoryServicing
     let importURLsProvider: () -> [URL]?
     let terminalRegistry: TerminalSessionRegistry
@@ -12,11 +13,13 @@ struct AppDependencies {
 
     static func live(
         configStore: ProjectConfigStore? = nil,
+        uiStateStore: UIStateStore? = nil,
         gitService: GitRepositoryServicing? = nil,
         importURLsProvider: (() -> [URL]?)? = nil
     ) -> AppDependencies {
         AppDependencies(
             configStore: configStore ?? ProjectConfigStore(),
+            uiStateStore: uiStateStore ?? UIStateStore(),
             gitService: gitService ?? GitRepositoryService(),
             importURLsProvider: importURLsProvider ?? defaultImportURLsProvider(),
             terminalRegistry: TerminalSessionRegistry(),

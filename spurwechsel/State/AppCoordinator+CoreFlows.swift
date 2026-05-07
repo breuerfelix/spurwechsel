@@ -541,6 +541,35 @@ extension AppCoordinator {
         layout.setPreferredPreviewWidth(width, allowedRange: allowedRange)
     }
 
+    func setPreferredLeftSidebarWidth(
+        _ width: CGFloat,
+        allowedRange: ClosedRange<CGFloat>
+    ) {
+        layout.setPreferredLeftSidebarWidth(width, allowedRange: allowedRange)
+    }
+
+    func setPreferredRightSidebarWidth(
+        _ width: CGFloat,
+        allowedRange: ClosedRange<CGFloat>
+    ) {
+        layout.setPreferredRightSidebarWidth(width, allowedRange: allowedRange)
+    }
+
+    func persistUIState() {
+        let state = UIStateFile(
+            layout: UILayoutState(
+                preferredLeftSidebarWidth: layout.preferredLeftSidebarWidth.map { Double($0) },
+                preferredRightSidebarWidth: layout.preferredRightSidebarWidth.map { Double($0) }
+            )
+        )
+
+        do {
+            try uiStateStore.save(state)
+        } catch {
+            Self.logger.error("Failed to save UI state at \(self.uiStateStore.stateURL.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
+        }
+    }
+
     func toggleTheme() {
         layout.toggleTheme()
     }
