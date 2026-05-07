@@ -290,6 +290,13 @@ final class LocalShellTerminalSessionController: ObservableObject {
         )
     }
 
+    func sendText(_ text: String) {
+        guard !text.isEmpty else {
+            return
+        }
+        terminalView.sendText(text)
+    }
+
     func dispose() {
         guard !isDisposed else {
             return

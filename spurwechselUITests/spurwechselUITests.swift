@@ -181,6 +181,39 @@ final class spurwechselUITests: XCTestCase {
         XCTAssertFalse(app.textFields["commandbar.search"].exists)
     }
 
+    func testOpenCodeWithoutWarpPluginShowsTopBarWarningBadgeOnly() throws {
+        let fixture = try makeFixture(existingProjectName: "existing-project")
+        try writeOpenCodeConfig(plugins: [], in: fixture.repositoryDirectory)
+
+        let app = XCUIApplication()
+        app.launchEnvironment["SPURWECHSEL_CONFIG_PATH"] = fixture.configURL.path
+        app.launchEnvironment["SPURWECHSEL_WORKTREES_ROOT"] = fixture.worktreesRoot.path
+        app.launch()
+
+        let addAgentButton = app.buttons["agents.add.existing-project"]
+        XCTAssertTrue(addAgentButton.waitForExistence(timeout: 2))
+
+        addAgentButton.tap()
+        let pickerField = app.textFields["commandbar.search"]
+        XCTAssertTrue(pickerField.waitForExistence(timeout: 2))
+        app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
+        XCTAssertTrue(app.buttons["agents.session.opencode-1"].waitForExistence(timeout: 2))
+
+        let warningBadge = app.otherElements["agent.header.warp-warning.badge"]
+        XCTAssertTrue(warningBadge.waitForExistence(timeout: 2))
+        XCTAssertEqual(app.otherElements.matching(identifier: "agent.header.warp-warning.badge").count, 1)
+
+        addAgentButton.tap()
+        XCTAssertTrue(pickerField.waitForExistence(timeout: 2))
+        pickerField.tap()
+        pickerField.typeText("codex")
+        app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
+        XCTAssertTrue(app.buttons["agents.session.codex-2"].waitForExistence(timeout: 2))
+        app.buttons["agents.session.codex-2"].tap()
+
+        XCTAssertFalse(warningBadge.waitForExistence(timeout: 1))
+    }
+
     func testCommandPaletteArrowDownSelectsNextCommand() throws {
         let fixture = try makeFixture(existingProjectName: "existing-project")
 
@@ -490,6 +523,17 @@ final class spurwechselUITests: XCTestCase {
         try "seed".write(to: fileURL, atomically: true, encoding: .utf8)
         try runGit(arguments: ["add", "README.md"], in: path)
         try runGit(arguments: ["commit", "-m", "seed"], in: path)
+    }
+
+    private func writeOpenCodeConfig(plugins: [String], in directory: URL) throws {
+        let pluginsList = plugins.map { "\"\($0)\"" }.joined(separator: ", ")
+        let payload = """
+        {
+          "plugin": [\(pluginsList)]
+        }
+        """
+        let configURL = directory.appendingPathComponent("opencode.json")
+        try payload.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
     }
 
     private func runGit(arguments: [String], in directory: URL) throws {
