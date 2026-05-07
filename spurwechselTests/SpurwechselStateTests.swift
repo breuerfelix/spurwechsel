@@ -653,6 +653,133 @@ final class SpurwechselStateTests: XCTestCase {
     }
 
     @MainActor
+    func testTerminalFocusedUnboundCommandKeyRewritesToControlWhenEnabled() throws {
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("spurwechsel-terminal-shortcuts-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+        let configStore = ProjectConfigStore(
+            configURL: temporaryDirectory.appendingPathComponent("config.yaml")
+        )
+        try configStore.save(
+            UserConfigFile.explicit(from: SpurwechselConfig(
+                terminal: TerminalConfig(commandKeyMapsToControl: true)
+            ))
+        )
+
+        let store = SpurwechselStore(configStore: configStore)
+        store.selectMainView(.terminal)
+
+        let commandU = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 3,
+            windowNumber: 0,
+            context: nil,
+            characters: "u",
+            charactersIgnoringModifiers: "u",
+            isARepeat: false,
+            keyCode: 32
+        ))
+
+        let result = store.handleKeyDownEvent(commandU, focusedSurfaceSlot: .main)
+        switch result {
+        case let .replace(replacement):
+            XCTAssertTrue(replacement.modifierFlags.contains(.control))
+            XCTAssertFalse(replacement.modifierFlags.contains(.command))
+        case .passThrough, .consume:
+            XCTFail("Expected replacement key event while terminal is focused")
+        }
+        XCTAssertFalse(store.commandBar.isPresented)
+    }
+
+    @MainActor
+    func testTerminalFocusedBoundCommandShortcutStillConsumesWhenRemapEnabled() throws {
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("spurwechsel-terminal-bound-shortcuts-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+        let configStore = ProjectConfigStore(
+            configURL: temporaryDirectory.appendingPathComponent("config.yaml")
+        )
+        try configStore.save(
+            UserConfigFile.explicit(from: SpurwechselConfig(
+                terminal: TerminalConfig(commandKeyMapsToControl: true)
+            ))
+        )
+
+        let store = SpurwechselStore(configStore: configStore)
+        store.selectMainView(.terminal)
+
+        let commandK = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 4,
+            windowNumber: 0,
+            context: nil,
+            characters: "k",
+            charactersIgnoringModifiers: "k",
+            isARepeat: false,
+            keyCode: 40
+        ))
+
+        let result = store.handleKeyDownEvent(commandK, focusedSurfaceSlot: .main)
+        switch result {
+        case .consume:
+            break
+        case .passThrough, .replace:
+            XCTFail("Expected command shortcut to be consumed while terminal is focused")
+        }
+        XCTAssertTrue(store.commandBar.isPresented)
+    }
+
+    @MainActor
+    func testVSCodeFocusedCommandShortcutStillConsumesWhenRemapEnabled() throws {
+        let temporaryDirectory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("spurwechsel-vscode-shortcuts-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: temporaryDirectory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: temporaryDirectory) }
+
+        let configStore = ProjectConfigStore(
+            configURL: temporaryDirectory.appendingPathComponent("config.yaml")
+        )
+        try configStore.save(
+            UserConfigFile.explicit(from: SpurwechselConfig(
+                terminal: TerminalConfig(commandKeyMapsToControl: true)
+            ))
+        )
+
+        let store = SpurwechselStore(configStore: configStore)
+        store.selectMainView(.vscode)
+
+        let commandK = try XCTUnwrap(NSEvent.keyEvent(
+            with: .keyDown,
+            location: .zero,
+            modifierFlags: [.command],
+            timestamp: 5,
+            windowNumber: 0,
+            context: nil,
+            characters: "k",
+            charactersIgnoringModifiers: "k",
+            isARepeat: false,
+            keyCode: 40
+        ))
+
+        let result = store.handleKeyDownEvent(commandK, focusedSurfaceSlot: .main)
+        switch result {
+        case .consume:
+            break
+        case .passThrough, .replace:
+            XCTFail("Expected command shortcut to be consumed while VSCode is focused")
+        }
+        XCTAssertTrue(store.commandBar.isPresented)
+    }
+
+    @MainActor
     func testCommandBarCloseDefaultsToFocusRestore() {
         let store = SpurwechselStore()
 

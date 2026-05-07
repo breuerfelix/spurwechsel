@@ -36,6 +36,7 @@ final class ProjectConfigStoreTests: XCTestCase {
         XCTAssertEqual(loadedConfig.projects, initialConfig.projects)
         XCTAssertEqual(loadedConfig.agents, initialConfig.agents)
         XCTAssertEqual(loadedConfig.shortcuts, initialConfig.shortcuts)
+        XCTAssertEqual(loadedConfig.terminal, initialConfig.terminal)
         XCTAssertEqual(loadedConfig.resolvedAgents.map(\.displayName), ["opencode", "claude", "codex"])
         XCTAssertEqual(loadedConfig.resolvedDefaultAgent.displayName, "opencode")
         XCTAssertEqual(loadedConfig.resolvedShortcuts.count, 1)
@@ -347,6 +348,57 @@ final class ProjectConfigStoreTests: XCTestCase {
         let loadedConfig = try configStore.load()
 
         XCTAssertEqual(loadedConfig.codeServer.resolvedPort, 9091)
+    }
+
+    func testConfigRoundTripPreservesTerminalCommandKeyMapping() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let customConfig = SpurwechselConfig(
+            terminal: TerminalConfig(commandKeyMapsToControl: true)
+        )
+
+        try configStore.save(UserConfigFile.explicit(from: customConfig))
+        let loadedConfig = try configStore.load()
+
+        XCTAssertTrue(loadedConfig.terminal.commandKeyMapsToControl)
+    }
+
+    func testLoadConfigWithoutTerminalSectionFallsBackToDefaultTerminalMapping() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        projects:
+          - path: "\(temporaryDirectoryURL.path)"
+            name: "tmp"
+        agents:
+          - name: "claude"
+            command: "claude"
+            default: true
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadedConfig = try configStore.load()
+
+        XCTAssertFalse(loadedConfig.terminal.commandKeyMapsToControl)
+    }
+
+    func testLoadResultWithInvalidTerminalSectionReportsDiagnosticAndUsesDefaults() throws {
+        let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
+        let configStore = ProjectConfigStore(configURL: configURL)
+        let yaml = """
+        version: 1
+        terminal:
+          commandKeyMapsToControl: "yes"
+        """
+        try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
+
+        let loadResult = configStore.loadResult()
+
+        XCTAssertFalse(loadResult.config.terminal.commandKeyMapsToControl)
+        XCTAssertTrue(loadResult.diagnostics.contains {
+            $0.message.contains("could not be parsed")
+        })
     }
 
     func testLoadConfigWithoutShortcutSectionFallsBackToDefaultResolvedShortcut() throws {
