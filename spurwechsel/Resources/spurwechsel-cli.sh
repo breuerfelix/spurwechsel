@@ -42,21 +42,20 @@ resolve_git_path() {
 
 workspace_root=""
 project_root=""
-if ! workspace_root="$(cd "$target_dir" && resolve_git_path --show-toplevel)"; then
-  echo "spurwechsel: folder is not inside git repository or worktree: $target_dir" >&2
-  exit 3
-fi
-
-git_common_dir=""
-if ! git_common_dir="$(cd "$target_dir" && resolve_git_path --git-common-dir)"; then
-  echo "spurwechsel: failed to resolve git common dir for: $target_dir" >&2
-  exit 3
-fi
-
-if [[ "$git_common_dir" == */.git ]]; then
-  project_root="$(cd "${git_common_dir%/.git}" && pwd -P)"
+if workspace_root="$(cd "$target_dir" && resolve_git_path --show-toplevel)"; then
+  git_common_dir=""
+  if git_common_dir="$(cd "$target_dir" && resolve_git_path --git-common-dir)"; then
+    if [[ "$git_common_dir" == */.git ]]; then
+      project_root="$(cd "${git_common_dir%/.git}" && pwd -P)"
+    else
+      project_root="$workspace_root"
+    fi
+  else
+    project_root="$workspace_root"
+  fi
 else
-  project_root="$workspace_root"
+  workspace_root="$target_dir"
+  project_root="$target_dir"
 fi
 
 base64url() {

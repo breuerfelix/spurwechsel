@@ -13,6 +13,7 @@ Goal: reduce context switches between repo selection, worktree management, agent
 Current app is not prototype shell anymore. Important real integrations:
 
 - git repository and worktree discovery via `libgit2`
+- plain folder projects with Git capability detection at refresh/import time
 - persistent project config in `~/.spurwechsel/config.yaml`
 - real terminal surfaces backed by Ghostty
 - configurable agent launch commands
@@ -21,7 +22,9 @@ Current app is not prototype shell anymore. Important real integrations:
 
 ## Main User Flow
 1. Load persisted projects from config.
-2. Resolve each configured repo into primary repo plus linked worktrees.
+2. Resolve each configured path into either:
+   - Git project: primary repo plus linked worktrees
+   - Plain project: single folder workspace with no branch/worktrees
 3. Select project or worktree in right sidebar.
 4. Open agent, terminal, or VSCode as main surface.
 5. Optionally keep second surface in preview pane.

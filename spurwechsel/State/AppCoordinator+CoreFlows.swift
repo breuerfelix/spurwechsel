@@ -457,7 +457,7 @@ extension AppCoordinator {
         }
 
         let trimmedQuery = commandBar.query.trimmingCharacters(in: .whitespacesAndNewlines)
-        let commands = CommandID.allCases
+        let commands = visibleCommandsForCurrentContext()
 
         guard !trimmedQuery.isEmpty else {
             return commands
@@ -482,6 +482,22 @@ extension AppCoordinator {
                 return lhs.1 < rhs.1
             }
             .map(\.0)
+    }
+
+    private func visibleCommandsForCurrentContext() -> [CommandID] {
+        CommandID.allCases.filter { command in
+            switch command {
+            case .addWorktree, .deleteWorktree:
+                guard let projectID = resolveProjectContextID(preferred: commandBar.projectContextID),
+                      let project = projects.project(id: projectID)
+                else {
+                    return false
+                }
+                return project.isGitRepository
+            default:
+                return true
+            }
+        }
     }
 
     var filteredPickerItems: [CommandBarPickerItem] {
@@ -817,6 +833,13 @@ extension AppCoordinator {
                 )
                 return
             }
+            guard project.isGitRepository else {
+                commandBar.notice = CommandBarNotice(
+                    text: "Selected project is not a Git repository.",
+                    isError: true
+                )
+                return
+            }
 
             let deletedSelection = WorkspaceSelection.worktree(worktreeID)
             let preservedMainView = layout.selectedMainView
@@ -1100,28 +1123,7 @@ extension AppCoordinator {
             return 0
         }
 
-        var validRecords: [ProjectRecord] = []
-        var invalidRepositoryRecords: [ProjectRecord] = []
-        for record in newRecords {
-            do {
-                _ = try gitService.repositorySnapshot(at: URL(fileURLWithPath: record.path))
-                Self.logger.debug("Import validation passed for git repo: \(record.path, privacy: .public)")
-                validRecords.append(record)
-            } catch {
-                Self.logger.error("Import validation failed for path \(record.path, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                print("Spurwechsel import validation failed for \(record.path): \(error.localizedDescription)")
-                invalidRepositoryRecords.append(record)
-            }
-        }
-
-        guard !validRecords.isEmpty else {
-            Self.logger.error("Import aborted. All selected folders failed git repository validation.")
-            print("Spurwechsel import aborted: all selected folders failed git repository validation.")
-            presentImportValidationNotice(for: invalidRepositoryRecords, importedCount: 0)
-            return 0
-        }
-
-        projectConfig.projects.append(contentsOf: validRecords)
+        projectConfig.projects.append(contentsOf: newRecords)
         if let writeError = trySaveConfig() {
             Self.logger.error("Failed to save config at \(self.configStore.configURL.path, privacy: .public): \(writeError.localizedDescription, privacy: .public)")
             print("Spurwechsel config save failed at \(configStore.configURL.path): \(writeError.localizedDescription)")
@@ -1131,7 +1133,7 @@ extension AppCoordinator {
 
         refreshProjectsFromConfig()
 
-        if let firstImportedRecord = validRecords.first,
+        if let firstImportedRecord = newRecords.first,
            let importedProject = projects.projects.first(where: {
                $0.path == firstImportedRecord.path || $0.name == firstImportedRecord.displayName
            }) {
@@ -1142,58 +1144,8 @@ extension AppCoordinator {
         layout.showsLeftSidebar = true
         selectOrCreateAgentTab(for: projects.selection)
 
-        if !invalidRepositoryRecords.isEmpty {
-            presentImportValidationNotice(for: invalidRepositoryRecords, importedCount: validRecords.count)
-        }
-
-        Self.logger.debug("Import completed. Added \(validRecords.count, privacy: .public) project(s).")
-        return validRecords.count
-    }
-
-    private func presentImportValidationNotice(
-        for invalidRecords: [ProjectRecord],
-        importedCount: Int
-    ) {
-        guard !invalidRecords.isEmpty else {
-            return
-        }
-
-        let nonRepositoryNames = invalidRepositoryDisplayNames(for: invalidRecords)
-        let noun = invalidRecords.count == 1 ? "folder" : "folders"
-        let importMessage: String
-        if importedCount > 0 {
-            let projectNoun = importedCount == 1 ? "project" : "projects"
-            importMessage = "Added \(importedCount) \(projectNoun). "
-        } else {
-            importMessage = "Cannot add \(invalidRecords.count) \(noun). "
-        }
-        let namesMessage = nonRepositoryNames.joined(separator: ", ")
-        let repositoryNoun = invalidRecords.count == 1 ? "repository" : "repositories"
-        let message = "\(importMessage)\(invalidRecords.count == 1 ? "Folder is" : "Folders are") not Git \(repositoryNoun) and could not be added (\(namesMessage))."
-        Self.logger.error("Import rejected non-repository \(noun): \(namesMessage, privacy: .public)")
-
-        openCommandBar()
-        commandBar.mode = .commandList
-        commandBar.notice = CommandBarNotice(
-            text: message,
-            isError: true
-        )
-        commandBar.workspaceContext = nil
-    }
-
-    private func invalidRepositoryDisplayNames(for records: [ProjectRecord]) -> [String] {
-        let names = records.map { URL(fileURLWithPath: $0.path).lastPathComponent }
-        var nameCounts: [String: Int] = [:]
-        for name in names {
-            nameCounts[name, default: 0] += 1
-        }
-
-        return zip(records, names).map { record, name in
-            if nameCounts[name, default: 0] > 1 {
-                return record.path
-            }
-            return name
-        }
+        Self.logger.debug("Import completed. Added \(newRecords.count, privacy: .public) project(s).")
+        return newRecords.count
     }
 
     private func beginAddWorktreeFlow(
@@ -1208,6 +1160,15 @@ extension AppCoordinator {
                 "Select project first, then run Add Worktree.",
                 source: source,
                 projectContextID: projectContextID,
+                workspaceContext: workspaceContext
+            )
+            return
+        }
+        guard project.isGitRepository else {
+            presentCommandBarError(
+                "Selected project is not a Git repository.",
+                source: source,
+                projectContextID: resolvedProjectID,
                 workspaceContext: workspaceContext
             )
             return
@@ -1270,6 +1231,15 @@ extension AppCoordinator {
                 "Select project first, then run Delete Worktree.",
                 source: source,
                 projectContextID: commandBar.projectContextID,
+                workspaceContext: workspaceContext
+            )
+            return
+        }
+        guard project.isGitRepository else {
+            presentCommandBarError(
+                "Selected project is not a Git repository.",
+                source: source,
+                projectContextID: resolvedProjectID,
                 workspaceContext: workspaceContext
             )
             return
@@ -1514,6 +1484,13 @@ extension AppCoordinator {
             guard let project = projects.project(id: projectID) else {
                 commandBar.notice = CommandBarNotice(
                     text: "Project no longer available.",
+                    isError: true
+                )
+                return
+            }
+            guard project.isGitRepository else {
+                commandBar.notice = CommandBarNotice(
+                    text: "Selected project is not a Git repository.",
                     isError: true
                 )
                 return
@@ -2451,12 +2428,7 @@ extension AppCoordinator {
         var refreshedProjects: [Project] = []
         for record in projectConfig.projects {
             let normalizedRecordPath = normalizePath(record.path)
-            let snapshot: GitRepositorySnapshot
-            do {
-                snapshot = try gitService.repositorySnapshot(at: URL(fileURLWithPath: normalizedRecordPath))
-            } catch {
-                Self.logger.error("Skipping persisted project \(record.displayName, privacy: .public) at \(normalizedRecordPath, privacy: .public): \(error.localizedDescription, privacy: .public)")
-                print("Spurwechsel skip persisted project \(record.displayName) at \(normalizedRecordPath): \(error.localizedDescription)")
+            guard let snapshot = workspaceSnapshot(at: normalizedRecordPath) else {
                 continue
             }
 
@@ -2500,12 +2472,17 @@ extension AppCoordinator {
                 Project(
                     id: projectID,
                     name: record.displayName,
-                    branch: snapshot.currentBranch,
+                    branch: snapshot.currentBranch ?? "",
                     path: snapshot.repositoryRootPath,
-                    worktrees: discoveredWorktrees
+                    worktrees: discoveredWorktrees,
+                    isGitRepository: snapshot.currentBranch != nil
                 )
             )
-            Self.logger.debug("Loaded project \(record.displayName, privacy: .public) branch \(snapshot.currentBranch, privacy: .public) worktrees \(snapshot.worktrees.count - 1, privacy: .public)")
+            if let currentBranch = snapshot.currentBranch {
+                Self.logger.debug("Loaded git project \(record.displayName, privacy: .public) branch \(currentBranch, privacy: .public) worktrees \(snapshot.worktrees.count - 1, privacy: .public)")
+            } else {
+                Self.logger.debug("Loaded plain directory project \(record.displayName, privacy: .public) path \(snapshot.repositoryRootPath, privacy: .public)")
+            }
         }
 
         projects.replaceProjects(refreshedProjects)
@@ -2517,6 +2494,48 @@ extension AppCoordinator {
         pruneVSCodeWebRuntimes(keepingWorkspaceIDs: Set(validSelections.map(\.stableID)))
         pruneSurfaceTabs(keepingSelections: validSelections)
         Self.logger.debug("Refresh done. Active projects in UI: \(self.projects.projects.count, privacy: .public)")
+    }
+
+    private struct WorkspaceSnapshot {
+        let repositoryRootPath: String
+        let currentBranch: String?
+        let worktrees: [GitWorktreeSnapshot]
+    }
+
+    private func workspaceSnapshot(at normalizedPath: String) -> WorkspaceSnapshot? {
+        var isDirectory: ObjCBool = false
+        guard FileManager.default.fileExists(atPath: normalizedPath, isDirectory: &isDirectory),
+              isDirectory.boolValue
+        else {
+            let message = "Path does not exist or is not directory"
+            Self.logger.error("Skipping persisted project at \(normalizedPath, privacy: .public): \(message, privacy: .public)")
+            print("Spurwechsel skip persisted project at \(normalizedPath): \(message)")
+            return nil
+        }
+
+        do {
+            let gitSnapshot = try gitService.repositorySnapshot(at: URL(fileURLWithPath: normalizedPath))
+            return WorkspaceSnapshot(
+                repositoryRootPath: gitSnapshot.repositoryRootPath,
+                currentBranch: gitSnapshot.currentBranch,
+                worktrees: gitSnapshot.worktrees
+            )
+        } catch let error as GitRepositoryServiceError {
+            if case .notRepository = error {
+                return WorkspaceSnapshot(
+                    repositoryRootPath: normalizedPath,
+                    currentBranch: nil,
+                    worktrees: []
+                )
+            }
+            Self.logger.error("Skipping persisted project at \(normalizedPath, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            print("Spurwechsel skip persisted project at \(normalizedPath): \(error.localizedDescription)")
+            return nil
+        } catch {
+            Self.logger.error("Skipping persisted project at \(normalizedPath, privacy: .public): \(error.localizedDescription, privacy: .public)")
+            print("Spurwechsel skip persisted project at \(normalizedPath): \(error.localizedDescription)")
+            return nil
+        }
     }
 
     private func pruneSurfaceTabs(keepingSelections: Set<WorkspaceSelection>) {

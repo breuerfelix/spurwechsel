@@ -169,10 +169,12 @@ private struct ProjectRowView: View {
 
                 hoverPlusSlot
 
-                Text(project.branch)
-                    .font(.system(size: 12, weight: .medium, design: .monospaced))
-                    .foregroundStyle(isSelected ? theme.foreground : theme.foregroundDim)
-                    .accessibilityIdentifier("projects.project-branch.\(project.name.accessibilitySlug)")
+                if project.isGitRepository {
+                    Text(project.branch)
+                        .font(.system(size: 12, weight: .medium, design: .monospaced))
+                        .foregroundStyle(isSelected ? theme.foreground : theme.foregroundDim)
+                        .accessibilityIdentifier("projects.project-branch.\(project.name.accessibilitySlug)")
+                }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
 
@@ -208,7 +210,7 @@ private struct ProjectRowView: View {
 
     @ViewBuilder
     private var hoverPlusSlot: some View {
-        if isHovering {
+        if isHovering, project.isGitRepository {
             GhostActionButton(
                 systemName: "plus",
                 title: "Create worktree",
