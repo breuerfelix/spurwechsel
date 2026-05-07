@@ -47,7 +47,9 @@ enum PreviewFixtures {
 
     static let projectsState = ProjectsState(
         projects: [tiltrunProject, orbitProject, draftframeProject, sidetrackProject],
+        configuredSections: [],
         collapsedProjectIDs: [],
+        collapsedSectionIDs: [],
         selection: .worktree(draftframeExporting.id),
         nextProjectCount: 5,
         nextWorktreeCount: 3

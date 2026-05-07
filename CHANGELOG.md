@@ -8,6 +8,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 
 ### Added
 - New config setting `terminal.commandKeyMapsToControl` (default `false`) to optionally remap `Command+<key>` into `Control+<key>` while terminal or agent terminal surface is focused.
+- Right `Projects` sidebar now supports config-driven sections with collapsible divider rows, per-section project counts, multi-section membership, fallback `other` grouping, and hidden empty sections.
 - Expanded built-in shortcut set with defaults for project selection, agent cycling/removal, split view toggle, and direct `agent` / `terminal` / `vscode` view switching.
 - Managed `~/.spurwechsel/AGENTS.md` guide now lists default shortcut bindings explicitly, so agents can preserve or override built-ins correctly when editing config.
 - OpenCode Warp rich-status mapping now matches Warp local-agent semantics, including `session_start -> running`, waiting states for approval/input events, and `idle_prompt` as a no-op.

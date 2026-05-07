@@ -17,6 +17,7 @@ struct WorkspaceSidebarView: View {
     let selectWorkspace: (WorkspaceSelection) -> Void
     let addWorktree: (UUID) -> Void
     let toggleProjectCollapse: (UUID) -> Void
+    let toggleSectionCollapse: (String) -> Void
 
     private var theme: SpurTheme { shellStore.theme }
 
@@ -26,15 +27,30 @@ struct WorkspaceSidebarView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: SpurSpacing.sm) {
-                    ForEach(workspaceStore.projects.projects) { project in
-                        ProjectGroupView(
-                            workspaceStore: workspaceStore,
-                            project: project,
-                            theme: theme,
-                            selectWorkspace: selectWorkspace,
-                            addWorktree: addWorktree,
-                            toggleProjectCollapse: toggleProjectCollapse
-                        )
+                    let sections = workspaceStore.projects.sidebarSections
+                    if sections.count == 1, let onlySection = sections.first {
+                        ForEach(onlySection.projects) { project in
+                            ProjectGroupView(
+                                workspaceStore: workspaceStore,
+                                project: project,
+                                theme: theme,
+                                selectWorkspace: selectWorkspace,
+                                addWorktree: addWorktree,
+                                toggleProjectCollapse: toggleProjectCollapse
+                            )
+                        }
+                    } else {
+                        ForEach(sections) { section in
+                            SectionGroupView(
+                                workspaceStore: workspaceStore,
+                                section: section,
+                                theme: theme,
+                                selectWorkspace: selectWorkspace,
+                                addWorktree: addWorktree,
+                                toggleProjectCollapse: toggleProjectCollapse,
+                                toggleSectionCollapse: toggleSectionCollapse
+                            )
+                        }
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -100,6 +116,79 @@ private struct WorkspaceSidebarHeader: View {
             Color.clear
                 .frame(width: 20, height: 20)
         }
+    }
+}
+
+private struct SectionGroupView: View {
+    @ObservedObject var workspaceStore: WorkspaceStore
+    let section: ProjectsState.SidebarSection
+    let theme: SpurTheme
+    let selectWorkspace: (WorkspaceSelection) -> Void
+    let addWorktree: (UUID) -> Void
+    let toggleProjectCollapse: (UUID) -> Void
+    let toggleSectionCollapse: (String) -> Void
+
+    private var isCollapsed: Bool {
+        workspaceStore.projects.collapsedSectionIDs.contains(section.id)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: SpurSpacing.xs) {
+            SectionRowView(
+                section: section,
+                theme: theme,
+                isCollapsed: isCollapsed,
+                toggleSectionCollapse: toggleSectionCollapse
+            )
+
+            if !isCollapsed {
+                VStack(alignment: .leading, spacing: SpurSpacing.xs) {
+                    ForEach(section.projects) { project in
+                        ProjectGroupView(
+                            workspaceStore: workspaceStore,
+                            project: project,
+                            theme: theme,
+                            selectWorkspace: selectWorkspace,
+                            addWorktree: addWorktree,
+                            toggleProjectCollapse: toggleProjectCollapse
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct SectionRowView: View {
+    let section: ProjectsState.SidebarSection
+    let theme: SpurTheme
+    let isCollapsed: Bool
+    let toggleSectionCollapse: (String) -> Void
+
+    var body: some View {
+        HStack(spacing: SpurSpacing.xs) {
+            sectionLine
+            Text("\(section.title) (\(section.projectCount))")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(isCollapsed ? theme.foregroundDim : theme.foregroundMuted)
+                .multilineTextAlignment(.center)
+                .lineLimit(1)
+            sectionLine
+        }
+            .padding(.horizontal, 10)
+            .padding(.vertical, 5)
+            .frame(maxWidth: .infinity, alignment: .center)
+            .contentShape(Rectangle())
+            .onTapGesture {
+                toggleSectionCollapse(section.id)
+            }
+            .accessibilityIdentifier("projects.section.\(section.id.accessibilitySlug)")
+    }
+
+    private var sectionLine: some View {
+        Rectangle()
+            .fill(isCollapsed ? theme.border : theme.borderStrong)
+            .frame(maxWidth: .infinity, minHeight: 1, maxHeight: 1)
     }
 }
 

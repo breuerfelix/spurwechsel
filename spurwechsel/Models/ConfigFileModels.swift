@@ -21,6 +21,7 @@ struct ConfigLoadResult: Equatable {
 struct UserConfigFile: Codable, Equatable {
     var version: Int?
     var codeServer: UserCodeServerConfig?
+    var sections: [UserProjectSectionRecord]?
     var projects: [UserProjectRecord]?
     var agents: [UserAgentConfigRecord]?
     var shortcuts: [UserShortcutRecord]?
@@ -30,6 +31,7 @@ struct UserConfigFile: Codable, Equatable {
     init(
         version: Int? = nil,
         codeServer: UserCodeServerConfig? = nil,
+        sections: [UserProjectSectionRecord]? = nil,
         projects: [UserProjectRecord]? = nil,
         agents: [UserAgentConfigRecord]? = nil,
         shortcuts: [UserShortcutRecord]? = nil,
@@ -38,6 +40,7 @@ struct UserConfigFile: Codable, Equatable {
     ) {
         self.version = version
         self.codeServer = codeServer
+        self.sections = sections
         self.projects = projects
         self.agents = agents
         self.shortcuts = shortcuts
@@ -49,7 +52,19 @@ struct UserConfigFile: Codable, Equatable {
         UserConfigFile(
             version: config.version,
             codeServer: UserCodeServerConfig(port: config.codeServer.resolvedPort),
-            projects: config.projects.map { UserProjectRecord(path: $0.path, name: $0.name) },
+            sections: config.sections.map {
+                UserProjectSectionRecord(
+                    id: $0.id,
+                    name: $0.name
+                )
+            },
+            projects: config.projects.map {
+                UserProjectRecord(
+                    path: $0.path,
+                    name: $0.name,
+                    sections: $0.sections
+                )
+            },
             agents: config.agents.map {
                 UserAgentConfigRecord(
                     name: $0.name,
@@ -86,17 +101,35 @@ struct UserCodeServerConfig: Codable, Equatable {
 struct UserProjectRecord: Codable, Equatable, Hashable {
     var path: String?
     var name: String?
+    var sections: [String]?
 
-    init(path: String? = nil, name: String? = nil) {
+    init(path: String? = nil, name: String? = nil, sections: [String]? = nil) {
         self.path = path
         self.name = name
+        self.sections = sections
     }
 
     init(record: ProjectRecord) {
         self.path = record.path
         self.name = record.name
+        self.sections = record.sections
     }
 
+}
+
+struct UserProjectSectionRecord: Codable, Equatable, Hashable {
+    var id: String?
+    var name: String?
+
+    init(id: String? = nil, name: String? = nil) {
+        self.id = id
+        self.name = name
+    }
+
+    init(record: ProjectSectionRecord) {
+        self.id = record.id
+        self.name = record.name
+    }
 }
 
 struct UserAgentConfigRecord: Codable, Equatable, Hashable {

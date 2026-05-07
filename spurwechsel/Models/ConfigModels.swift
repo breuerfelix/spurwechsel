@@ -121,10 +121,12 @@ struct AgentConfigRecord: Equatable, Hashable {
 struct ProjectRecord: Equatable, Hashable {
     var path: String
     var name: String?
+    var sections: [String]
 
-    init(path: String, name: String? = nil) {
+    init(path: String, name: String? = nil, sections: [String] = []) {
         self.path = path
         self.name = name
+        self.sections = sections
     }
 
     var displayName: String {
@@ -132,6 +134,26 @@ struct ProjectRecord: Equatable, Hashable {
             return name
         }
         return URL(fileURLWithPath: path).lastPathComponent
+    }
+}
+
+struct ProjectSectionRecord: Equatable, Hashable {
+    static let fallbackID = "other"
+
+    var id: String
+    var name: String?
+
+    init(id: String, name: String? = nil) {
+        self.id = id
+        self.name = name
+    }
+
+    var displayName: String {
+        let trimmed = name?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let trimmed, !trimmed.isEmpty {
+            return trimmed
+        }
+        return id
     }
 }
 
@@ -390,6 +412,7 @@ struct SpurwechselConfig: Equatable {
 
     var version: Int
     var codeServer: CodeServerConfig
+    var sections: [ProjectSectionRecord]
     var projects: [ProjectRecord]
     var agents: [AgentConfigRecord]
     var shortcuts: [ShortcutRecord]
@@ -399,6 +422,7 @@ struct SpurwechselConfig: Equatable {
     init(
         version: Int = SpurwechselConfig.currentVersion,
         codeServer: CodeServerConfig = CodeServerConfig(),
+        sections: [ProjectSectionRecord] = [],
         projects: [ProjectRecord] = [],
         agents: [AgentConfigRecord] = SpurwechselConfig.defaultAgents,
         shortcuts: [ShortcutRecord] = SpurwechselConfig.defaultShortcuts,
@@ -407,6 +431,7 @@ struct SpurwechselConfig: Equatable {
     ) {
         self.version = version
         self.codeServer = codeServer
+        self.sections = sections
         self.projects = projects
         self.agents = agents
         self.shortcuts = shortcuts

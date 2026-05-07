@@ -123,7 +123,8 @@ private struct SpurwechselShellView: View {
                                 toggleTheme: { store.send(.toggleTheme) },
                                 selectWorkspace: { store.send(.selectWorkspace($0)) },
                                 addWorktree: { store.send(.addWorktree($0)) },
-                                toggleProjectCollapse: { store.send(.toggleProjectCollapse($0)) }
+                                toggleProjectCollapse: { store.send(.toggleProjectCollapse($0)) },
+                                toggleSectionCollapse: { store.send(.toggleSectionCollapse($0)) }
                             )
                                 .frame(width: metrics.rightSidebarWidth)
                                 .transition(.move(edge: .trailing).combined(with: .opacity))
