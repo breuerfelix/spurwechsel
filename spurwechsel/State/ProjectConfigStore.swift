@@ -206,6 +206,7 @@ struct ProjectConfigStore {
         - `projects`
         - `agents`
         - `shortcuts`
+        - `terminal`
         - `theme`
 
         ## Configurable fields
@@ -216,6 +217,7 @@ struct ProjectConfigStore {
         - `projects[]`: `path` (required), `name` (optional), `sections` (optional list of section ids).
         - `agents[]`: `name` (required), `command` (required), `default` (optional bool).
         - `shortcuts[]`: `command` (required), `key` (required single character), `modifiers` (optional list).
+        - `terminal.swapCommandAndControlWhenFocused`: optional bool.
         - `theme.light.<token>` and `theme.dark.<token>`: color string `#RRGGBB` or `#RRGGBBAA`.
 
         ## Important rules
@@ -225,6 +227,7 @@ struct ProjectConfigStore {
         - If project has no valid sections, sidebar places it in fallback section `other`.
         - If no valid agents remain, Spurwechsel falls back to built-ins (`opencode`, `claude`, `codex`).
         - `shortcuts[].modifiers` supports only: `command`, `shift`, `option`, `control`.
+        - `terminal.swapCommandAndControlWhenFocused: true` swaps `command` and `control` only for focused terminal input after app shortcuts are checked first.
         - Invalid values trigger diagnostics and fallback values.
 
         ## Default shortcut bindings
@@ -295,6 +298,8 @@ struct ProjectConfigStore {
           - command: open-vscode-view
             key: o
             modifiers: [command, shift]
+        terminal:
+          swapCommandAndControlWhenFocused: true
         theme: {}
         ```
         """

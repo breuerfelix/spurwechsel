@@ -41,6 +41,7 @@ struct AppView: View {
                 isCommandBarPresented: commandBar.isPresented,
                 shouldRestoreCommandBarFocus: shell.commandBarShouldRestorePreviousFocus,
                 shortcutBindings: shell.resolvedShortcuts,
+                terminalConfig: shell.terminalConfig,
                 dispatchShortcut: { command in
                     store.send(.shortcut(command))
                 }

@@ -36,6 +36,7 @@ enum AppBootstrap {
             shell: ShellFeature.State(
                 layout: layout,
                 resolvedShortcuts: loadResult.config.resolvedShortcuts,
+                terminalConfig: loadResult.config.terminal,
                 themeSet: loadResult.config.theme,
                 configNotification: configNotification,
                 dismissedConfigNotificationSignature: nil,

@@ -178,6 +178,14 @@ struct CodeServerConfig: Equatable, Hashable {
     }
 }
 
+struct TerminalConfig: Equatable, Hashable {
+    var swapCommandAndControlWhenFocused: Bool
+
+    init(swapCommandAndControlWhenFocused: Bool = false) {
+        self.swapCommandAndControlWhenFocused = swapCommandAndControlWhenFocused
+    }
+}
+
 enum ThemeToken: String, CaseIterable, Hashable, Codable {
     case background
     case backgroundSecondary
@@ -407,6 +415,7 @@ struct SpurwechselConfig: Equatable {
     var projects: [ProjectRecord]
     var agents: [AgentConfigRecord]
     var shortcuts: [ShortcutRecord]
+    var terminal: TerminalConfig
     var theme: ThemeSet
 
     init(
@@ -416,6 +425,7 @@ struct SpurwechselConfig: Equatable {
         projects: [ProjectRecord] = [],
         agents: [AgentConfigRecord] = SpurwechselConfig.defaultAgents,
         shortcuts: [ShortcutRecord] = SpurwechselConfig.defaultShortcuts,
+        terminal: TerminalConfig = TerminalConfig(),
         theme: ThemeSet = SpurwechselConfig.defaultTheme
     ) {
         self.version = version
@@ -424,6 +434,7 @@ struct SpurwechselConfig: Equatable {
         self.projects = projects
         self.agents = agents
         self.shortcuts = shortcuts
+        self.terminal = terminal
         self.theme = theme
     }
 
