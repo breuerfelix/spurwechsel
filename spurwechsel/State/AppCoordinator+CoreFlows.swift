@@ -10,6 +10,12 @@ enum CommandInvocationSource {
     case direct
 }
 
+enum KeyDownInterceptResult {
+    case passThrough
+    case consume
+    case replace(NSEvent)
+}
+
 @MainActor
 extension AppCoordinator {
     func requestApplicationQuit() {
@@ -240,28 +246,107 @@ extension AppCoordinator {
         projectConfig.shortcutBinding(for: command)
     }
 
+    func handleKeyDownEvent(
+        _ event: NSEvent,
+        focusedSurfaceSlot: SurfaceSlot?
+    ) -> KeyDownInterceptResult {
+        guard event.type == .keyDown else {
+            return .passThrough
+        }
+        if let matchedCommand = matchedShortcutCommand(for: event) {
+            dispatchShortcutCommand(matchedCommand)
+            return .consume
+        }
+        if let remappedEvent = remappedTerminalCommandEventIfNeeded(
+            event,
+            focusedSurfaceSlot: focusedSurfaceSlot
+        ) {
+            return .replace(remappedEvent)
+        }
+        return .passThrough
+    }
+
     @discardableResult
     func handleGlobalShortcutEvent(_ event: NSEvent) -> Bool {
-        guard event.type == .keyDown else {
-            return false
+        if let matchedCommand = matchedShortcutCommand(for: event) {
+            dispatchShortcutCommand(matchedCommand)
+            return true
         }
-        guard let eventKey = Self.normalizedShortcutKey(from: event) else {
-            return false
-        }
-        let eventModifiers = Self.shortcutModifiers(from: event)
-
-        guard let matchedBinding = configuredShortcuts.first(where: {
-            $0.key == eventKey && $0.modifiers == eventModifiers
-        }) else {
-            return false
-        }
-
-        dispatchShortcutCommand(matchedBinding.command)
-        return true
+        return false
     }
 
     func dispatchShortcutCommand(_ command: CommandID) {
         executeCommand(command, source: .shortcut)
+    }
+
+    private func matchedShortcutCommand(for event: NSEvent) -> CommandID? {
+        guard event.type == .keyDown else {
+            return nil
+        }
+        guard let eventKey = Self.normalizedShortcutKey(from: event) else {
+            return nil
+        }
+        let eventModifiers = Self.shortcutModifiers(from: event)
+
+        return configuredShortcuts.first(where: {
+            $0.key == eventKey && $0.modifiers == eventModifiers
+        })?.command
+    }
+
+    private func remappedTerminalCommandEventIfNeeded(
+        _ event: NSEvent,
+        focusedSurfaceSlot: SurfaceSlot?
+    ) -> NSEvent? {
+        guard projectConfig.terminal.commandKeyMapsToControl else {
+            return nil
+        }
+        guard let focusedSurfaceSlot,
+              let focusedSurfaceID = surfaceID(for: focusedSurfaceSlot) else {
+            return nil
+        }
+        switch focusedSurfaceID {
+        case .workspaceTerminal, .agentSession, .agentWorkspace:
+            break
+        case .vscodeWorkspace:
+            return nil
+        }
+
+        let flags = event.modifierFlags
+        guard flags.contains(.command) else {
+            return nil
+        }
+        guard let rawKey = event.charactersIgnoringModifiers,
+              rawKey.count == 1,
+              let scalar = rawKey.unicodeScalars.first,
+              !CharacterSet.controlCharacters.contains(scalar) else {
+            return nil
+        }
+
+        var replacementFlags = flags
+        replacementFlags.remove(.command)
+        replacementFlags.insert(.control)
+
+        return NSEvent.keyEvent(
+            with: .keyDown,
+            location: event.locationInWindow,
+            modifierFlags: replacementFlags,
+            timestamp: event.timestamp,
+            windowNumber: event.windowNumber,
+            context: nil,
+            characters: event.characters ?? rawKey,
+            charactersIgnoringModifiers: rawKey,
+            isARepeat: event.isARepeat,
+            keyCode: event.keyCode
+        )
+    }
+
+    private func surfaceID(for slot: SurfaceSlot) -> SurfaceTabID? {
+        switch slot {
+        case .main:
+            return mountedMainSurfaceID
+        case .preview:
+            return mountedPreviewSurfaceID
+        }
     }
 
     private func handleExternalWorkspaceOpen(_ request: ExternalWorkspaceDeepLinkRequest) {

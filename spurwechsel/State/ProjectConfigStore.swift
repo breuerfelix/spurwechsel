@@ -197,6 +197,7 @@ struct ProjectConfigStore {
         - `projects`
         - `agents`
         - `shortcuts`
+        - `terminal`
         - `theme`
 
         ## Configurable fields
@@ -206,6 +207,7 @@ struct ProjectConfigStore {
         - `projects[]`: `path` (required), `name` (optional).
         - `agents[]`: `name` (required), `command` (required), `default` (optional bool).
         - `shortcuts[]`: `command` (required), `key` (required single character), `modifiers` (optional list).
+        - `terminal.commandKeyMapsToControl`: optional bool, default `false`.
         - `theme.light.<token>` and `theme.dark.<token>`: color string `#RRGGBB` or `#RRGGBBAA`.
 
         ## Important rules
@@ -244,6 +246,8 @@ struct ProjectConfigStore {
           - command: toggle-command-bar
             key: k
             modifiers: [command]
+        terminal:
+          commandKeyMapsToControl: false
         theme: {}
         ```
         """

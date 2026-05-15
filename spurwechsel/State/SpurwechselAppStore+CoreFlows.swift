@@ -105,6 +105,16 @@ extension SpurwechselAppStore {
         coordinator.shortcutBinding(for: command)
     }
 
+    func handleKeyDownEvent(
+        _ event: NSEvent,
+        focusedSurfaceSlot: SurfaceSlot?
+    ) -> KeyDownInterceptResult {
+        coordinator.handleKeyDownEvent(
+            event,
+            focusedSurfaceSlot: focusedSurfaceSlot
+        )
+    }
+
     @discardableResult
     func handleGlobalShortcutEvent(_ event: NSEvent) -> Bool {
         coordinator.handleGlobalShortcutEvent(event)

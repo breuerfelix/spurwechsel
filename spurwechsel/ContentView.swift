@@ -16,7 +16,7 @@ struct ContentView: View {
                 WindowActivityObserver(
                     onWindowKeyChange: store.setWindowKey(_:),
                     onApplicationActiveChange: store.setApplicationActive(_:),
-                    onKeyDownIntercept: store.handleGlobalShortcutEvent(_:),
+                    onKeyDownIntercept: store.handleKeyDownEvent(_:focusedSurfaceSlot:),
                     handleWindowCloseRequest: store.handleWindowCloseRequest,
                     onFocusedSurfaceSlotChange: store.recordFocusedSurfaceSlot(_:),
                     onWindowChromeStateChange: store.setWindowChromeState(_:),
@@ -432,7 +432,7 @@ private struct ConfigNotificationBannerView: View {
 private struct WindowActivityObserver: NSViewRepresentable {
     let onWindowKeyChange: (Bool) -> Void
     let onApplicationActiveChange: (Bool) -> Void
-    let onKeyDownIntercept: (NSEvent) -> Bool
+    let onKeyDownIntercept: (NSEvent, SurfaceSlot?) -> KeyDownInterceptResult
     let handleWindowCloseRequest: () -> Bool
     let onFocusedSurfaceSlotChange: (SurfaceSlot) -> Void
     let onWindowChromeStateChange: (WindowChromeState) -> Void
@@ -483,7 +483,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
 
         private let onWindowKeyChange: (Bool) -> Void
         private let onApplicationActiveChange: (Bool) -> Void
-        private let onKeyDownIntercept: (NSEvent) -> Bool
+        private let onKeyDownIntercept: (NSEvent, SurfaceSlot?) -> KeyDownInterceptResult
         private let handleWindowCloseRequest: () -> Bool
         private let onFocusedSurfaceSlotChange: (SurfaceSlot) -> Void
         private let onWindowChromeStateChange: (WindowChromeState) -> Void
@@ -507,7 +507,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
         init(
             onWindowKeyChange: @escaping (Bool) -> Void,
             onApplicationActiveChange: @escaping (Bool) -> Void,
-            onKeyDownIntercept: @escaping (NSEvent) -> Bool,
+            onKeyDownIntercept: @escaping (NSEvent, SurfaceSlot?) -> KeyDownInterceptResult,
             handleWindowCloseRequest: @escaping () -> Bool,
             onFocusedSurfaceSlotChange: @escaping (SurfaceSlot) -> Void,
             onWindowChromeStateChange: @escaping (WindowChromeState) -> Void,
@@ -815,11 +815,19 @@ private struct WindowActivityObserver: NSViewRepresentable {
                 guard let self else {
                     return event
                 }
-                let intercepted: Bool
+                let focusedSurfaceSlot = self.resolveFocusedSurfaceSlot(in: event.window ?? self.observedWindow)
+                let interceptedEvent: NSEvent?
                 if event.type == .keyDown {
-                    intercepted = self.onKeyDownIntercept(event)
+                    switch self.onKeyDownIntercept(event, focusedSurfaceSlot) {
+                    case .passThrough:
+                        interceptedEvent = event
+                    case .consume:
+                        interceptedEvent = nil
+                    case let .replace(replacement):
+                        interceptedEvent = replacement
+                    }
                 } else {
-                    intercepted = false
+                    interceptedEvent = event
                 }
 
                 let sourceWindow = event.window ?? self.observedWindow
@@ -829,7 +837,7 @@ private struct WindowActivityObserver: NSViewRepresentable {
                     }
                 }
 
-                return intercepted ? nil : event
+                return interceptedEvent
             }
         }
 
