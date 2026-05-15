@@ -177,6 +177,14 @@ struct ProjectConfigStore {
         let commands = CommandID.allCases
             .map { "- `\($0.rawValue)`" }
             .joined(separator: "\n")
+        let defaultShortcuts = SpurwechselConfig.defaultShortcuts
+            .compactMap { shortcut -> String? in
+                guard let binding = ResolvedShortcutBinding(record: shortcut) else {
+                    return nil
+                }
+                return "- `\(binding.displayLabel)`: `\(shortcut.command.rawValue)`"
+            }
+            .joined(separator: "\n")
         let themeTokens = ThemeToken.allCases
             .map { "- `\($0.rawValue)`" }
             .joined(separator: "\n")
@@ -217,6 +225,12 @@ struct ProjectConfigStore {
         - `shortcuts[].modifiers` supports only: `command`, `shift`, `option`, `control`.
         - Invalid values trigger diagnostics and fallback values.
 
+        ## Default shortcut bindings
+
+        These defaults apply when `shortcuts` is omitted. If user defines shortcut with same key+modifier signature, explicit config wins and conflicting default is dropped.
+
+        \(defaultShortcuts)
+
         ## Supported shortcut command IDs
 
         \(commands)
@@ -246,6 +260,33 @@ struct ProjectConfigStore {
           - command: toggle-command-bar
             key: k
             modifiers: [command]
+          - command: create-default-agent
+            key: t
+            modifiers: [command]
+          - command: select-next-agent
+            key: j
+            modifiers: [command, shift]
+          - command: select-previous-agent
+            key: k
+            modifiers: [command, shift]
+          - command: select-project
+            key: p
+            modifiers: [command]
+          - command: delete-agent
+            key: w
+            modifiers: [command]
+          - command: toggle-preview-pane
+            key: s
+            modifiers: [command, shift]
+          - command: open-agent-view
+            key: u
+            modifiers: [command, shift]
+          - command: open-terminal-view
+            key: i
+            modifiers: [command, shift]
+          - command: open-vscode-view
+            key: o
+            modifiers: [command, shift]
         terminal:
           commandKeyMapsToControl: false
         theme: {}

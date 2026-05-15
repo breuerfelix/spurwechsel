@@ -343,6 +343,46 @@ struct SpurwechselConfig: Equatable {
             command: .createDefaultAgent,
             key: "t",
             modifiers: [.command]
+        ),
+        ShortcutRecord(
+            command: .selectNextAgent,
+            key: "j",
+            modifiers: [.command, .shift]
+        ),
+        ShortcutRecord(
+            command: .selectPreviousAgent,
+            key: "k",
+            modifiers: [.command, .shift]
+        ),
+        ShortcutRecord(
+            command: .selectProject,
+            key: "p",
+            modifiers: [.command]
+        ),
+        ShortcutRecord(
+            command: .deleteAgent,
+            key: "w",
+            modifiers: [.command]
+        ),
+        ShortcutRecord(
+            command: .togglePreviewPane,
+            key: "s",
+            modifiers: [.command, .shift]
+        ),
+        ShortcutRecord(
+            command: .openAgentView,
+            key: "u",
+            modifiers: [.command, .shift]
+        ),
+        ShortcutRecord(
+            command: .openTerminalView,
+            key: "i",
+            modifiers: [.command, .shift]
+        ),
+        ShortcutRecord(
+            command: .openVSCodeView,
+            key: "o",
+            modifiers: [.command, .shift]
         )
     ]
     static let defaultTheme = ThemeSet.default
@@ -396,19 +436,33 @@ struct SpurwechselConfig: Equatable {
                     ResolvedShortcutBinding(record: record).map { ($0.command, $0) }
                 }
         )
-        var bindingsByCommand = fallbackByCommand
-
+        var explicitBindings: [ResolvedShortcutBinding] = []
         for record in shortcuts {
             guard let binding = ResolvedShortcutBinding(record: record) else {
                 continue
             }
-            bindingsByCommand[binding.command] = binding
+            explicitBindings.append(binding)
+        }
+        let explicitByCommand = Dictionary(
+            uniqueKeysWithValues: explicitBindings.map { ($0.command, $0) }
+        )
+        let explicitSignatures = Set(explicitBindings.map(\.signature))
+
+        func binding(for command: CommandID) -> ResolvedShortcutBinding? {
+            if let explicitBinding = explicitByCommand[command] {
+                return explicitBinding
+            }
+            guard let fallbackBinding = fallbackByCommand[command],
+                  !explicitSignatures.contains(fallbackBinding.signature) else {
+                return nil
+            }
+            return fallbackBinding
         }
 
         var consumedSignatures = Set<String>()
         var resolved: [ResolvedShortcutBinding] = []
         for command in CommandID.allCases {
-            guard let binding = bindingsByCommand[command] else {
+            guard let binding = binding(for: command) else {
                 continue
             }
             guard !consumedSignatures.contains(binding.signature) else {
