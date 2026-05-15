@@ -891,6 +891,170 @@ extension AppCoordinator {
         deleteAgent(sessionID: sessionID)
     }
 
+    private func agentStatusTrace(_ message: String) {
+        #if DEBUG
+        print(message)
+        #else
+        Self.logger.debug("\(message, privacy: .public)")
+        #endif
+    }
+
+    private func handleAgentDesktopNotification(
+        sessionID: UUID,
+        title: String,
+        body: String
+    ) {
+        guard let session = agents.sessions.first(where: { $0.id == sessionID }) else {
+            agentStatusTrace("[agent-status] notification dropped; unknown session=\(sessionID.uuidString)")
+            return
+        }
+        guard session.kind == .opencode else {
+            agentStatusTrace("[agent-status] notification dropped; unsupported kind=\(session.kind.rawValue) session=\(session.name)")
+            return
+        }
+        guard session.expectsRichStatus else {
+            agentStatusTrace("[agent-status] notification ignored; rich-status disabled for session=\(session.name)")
+            return
+        }
+
+        let compactBody = body.replacingOccurrences(of: "\n", with: "\\n")
+        let bodyPreview = compactBody.count > 240 ? String(compactBody.prefix(240)) + "..." : compactBody
+        agentStatusTrace("[agent-status] notification received session=\(session.name) title=\(title) bodyPreview=\(bodyPreview)")
+
+        let parseOutcome = AgentRichStatusEvent.parseDesktopNotification(title: title, body: body)
+        switch parseOutcome {
+        case .wrongTitle:
+            agentStatusTrace("[agent-status] notification ignored; title mismatch expected=\(AgentRichStatusEvent.notificationTitle) actual=\(title)")
+            return
+        case let .invalidPayload(reason):
+            agentStatusTrace("[agent-status] notification parse failed; invalid payload session=\(session.name) reason=\(reason ?? "unknown")")
+            if let eventType = heuristicEventType(in: body) {
+                applyRichStatusEvent(type: eventType, summary: nil, to: sessionID)
+                let nextStatus = agents.sessions.first(where: { $0.id == sessionID })?.status.rawValue ?? "missing"
+                agentStatusTrace("[agent-status] heuristic apply event=\(eventType.rawValue) -> \(nextStatus) session=\(session.name)")
+            }
+            return
+        case let .parsed(event):
+            guard event.agent == .opencode else {
+                agentStatusTrace("[agent-status] notification ignored; payload agent=\(event.agent.rawValue) session=\(session.name)")
+                return
+            }
+
+            let previousStatus = session.status
+            agents.updateRichStatusMetadata(for: sessionID, pluginVersion: event.pluginVersion)
+            applyRichStatusEvent(type: event.type, summary: event.summary, to: sessionID)
+            let nextStatus = agents.sessions.first(where: { $0.id == sessionID })?.status
+            agentStatusTrace("[agent-status] event applied session=\(session.name) event=\(event.type.rawValue) from=\(previousStatus.rawValue) to=\(nextStatus?.rawValue ?? "missing") pluginVersion=\(event.pluginVersion ?? "nil")")
+            return
+        }
+    }
+
+    private func heuristicEventType(in body: String) -> AgentRichStatusEventType? {
+        if body.contains("\"event\":\"session_start\"") {
+            return .sessionStart
+        }
+        if body.contains("\"event\":\"prompt_submit\"") {
+            return .promptSubmit
+        }
+        if body.contains("\"event\":\"stop\"") {
+            return .stop
+        }
+        if body.contains("\"event\":\"permission_request\"") {
+            return .permissionRequest
+        }
+        if body.contains("\"event\":\"question_asked\"") {
+            return .questionAsked
+        }
+        if body.contains("\"event\":\"permission_replied\"") {
+            return .permissionReplied
+        }
+        if body.contains("\"event\":\"tool_complete\"") {
+            return .toolComplete
+        }
+        if body.contains("\"event\":\"idle_prompt\"") {
+            return .idlePrompt
+        }
+        return nil
+    }
+
+    private func applyRichStatusEvent(
+        type: AgentRichStatusEventType,
+        summary: String?,
+        to sessionID: UUID
+    ) {
+        switch type {
+        case .sessionStart:
+            agents.updateStatus(for: sessionID, status: .running, detail: nil)
+        case .promptSubmit:
+            agents.updateStatus(for: sessionID, status: .running, detail: nil)
+        case .permissionRequest:
+            agents.updateStatus(
+                for: sessionID,
+                status: .waitingApproval,
+                detail: summary ?? "Waiting for approval"
+            )
+        case .questionAsked:
+            agents.updateStatus(
+                for: sessionID,
+                status: .waitingInput,
+                detail: summary ?? "Waiting for input"
+            )
+        case .permissionReplied:
+            guard let session = agents.sessions.first(where: { $0.id == sessionID }) else {
+                return
+            }
+            if session.status == .waitingApproval || session.status == .waitingInput {
+                agents.updateStatus(for: sessionID, status: .running, detail: nil)
+            }
+        case .toolComplete:
+            return
+        case .stop:
+            agents.updateStatus(for: sessionID, status: .idle, detail: nil)
+        case .idlePrompt:
+            return
+        }
+    }
+
+    private func isOpenCodeWarpPluginInstalled(workingDirectory: String) -> Bool {
+        let localConfigPath = URL(fileURLWithPath: workingDirectory)
+            .appendingPathComponent("opencode.json", isDirectory: false)
+            .path
+        if FileManager.default.fileExists(atPath: localConfigPath) {
+            return openCodeConfigContainsWarpPlugin(atPath: localConfigPath)
+        }
+
+        let globalConfigPath = URL(fileURLWithPath: NSHomeDirectory())
+            .appendingPathComponent(".config", isDirectory: true)
+            .appendingPathComponent("opencode", isDirectory: true)
+            .appendingPathComponent("opencode.json", isDirectory: false)
+            .path
+        if FileManager.default.fileExists(atPath: globalConfigPath) {
+            return openCodeConfigContainsWarpPlugin(atPath: globalConfigPath)
+        }
+
+        return false
+    }
+
+    private func openCodeConfigContainsWarpPlugin(atPath path: String) -> Bool {
+        guard let data = try? Data(contentsOf: URL(fileURLWithPath: path)),
+              let payload = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+              let plugins = payload["plugin"] as? [Any] else {
+            return false
+        }
+
+        for entry in plugins {
+            guard let value = entry as? String else {
+                continue
+            }
+            if value == "@warp-dot-dev/opencode-warp" ||
+                value.hasPrefix("@warp-dot-dev/opencode-warp@") {
+                return true
+            }
+        }
+
+        return false
+    }
+
     @discardableResult
     func importProjects(from urls: [URL]) -> Int {
         let selectedPaths = urls.map(\.path).joined(separator: " | ")
@@ -1496,17 +1660,34 @@ extension AppCoordinator {
             return
         }
 
+        let agentKind = AgentKind.detect(from: command)
+        let expectsRichStatus = agentKind == .opencode
+            ? isOpenCodeWarpPluginInstalled(workingDirectory: workingDirectory)
+            : false
+        let runtimeCommand: String
+        if expectsRichStatus {
+            runtimeCommand = "WARP_CLI_AGENT_PROTOCOL_VERSION=1 \(command)"
+        } else {
+            runtimeCommand = command
+        }
         let session = agents.addAgent(
             to: workspaceSelection,
             launcherName: agentName,
             launchCommand: command,
-            workingDirectory: workingDirectory
+            workingDirectory: workingDirectory,
+            kind: agentKind,
+            expectsRichStatus: expectsRichStatus
         )
-        agents.updateStatus(for: session.id, status: .running)
+        agentStatusTrace("[agent-status] launch session=\(session.name) id=\(session.id.uuidString) kind=\(agentKind.rawValue) command=\(command)")
+        if expectsRichStatus {
+            agentStatusTrace("[agent-status] protocol env enabled WARP_CLI_AGENT_PROTOCOL_VERSION=1 session=\(session.name)")
+        }
+        let initialStatus: AgentSessionStatus = expectsRichStatus ? .idle : .running
+        agents.updateStatus(for: session.id, status: initialStatus)
 
         _ = terminalRegistry.acquire(id: .agent(session.id)) {
             let launchPlan = LocalShellTerminalSessionController.makeCommandLaunchPlan(
-                command: command,
+                command: runtimeCommand,
                 workingDirectory: workingDirectory
             )
             return LocalShellTerminalSessionController(
@@ -1525,6 +1706,16 @@ extension AppCoordinator {
                         return
                     }
                     self.handleAgentProcessTerminated(sessionID: session.id, exitCode: exitCode)
+                },
+                onDesktopNotification: { [weak self] title, body in
+                    guard let self else {
+                        return
+                    }
+                    self.handleAgentDesktopNotification(
+                        sessionID: session.id,
+                        title: title,
+                        body: body
+                    )
                 }
             )
         }

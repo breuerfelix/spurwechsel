@@ -22,6 +22,56 @@ struct TerminalSessionShutdownSummary: Equatable {
 }
 
 @MainActor
+private final class TerminalSurfaceDelegateBridge:
+    TerminalSurfaceViewDelegate,
+    TerminalSurfaceTitleDelegate,
+    TerminalSurfaceGridResizeDelegate,
+    TerminalSurfaceFocusDelegate,
+    TerminalSurfaceCloseDelegate,
+    TerminalSurfaceCommandFinishedDelegate,
+    TerminalSurfaceDesktopNotificationDelegate
+{
+    private weak var terminalState: TerminalViewState?
+    private let onTitleChange: (String) -> Void
+    private let onDesktopNotification: (String, String) -> Void
+
+    init(
+        terminalState: TerminalViewState,
+        onTitleChange: @escaping (String) -> Void,
+        onDesktopNotification: @escaping (String, String) -> Void
+    ) {
+        self.terminalState = terminalState
+        self.onTitleChange = onTitleChange
+        self.onDesktopNotification = onDesktopNotification
+    }
+
+    func terminalDidChangeTitle(_ title: String) {
+        terminalState?.terminalDidChangeTitle(title)
+        onTitleChange(title)
+    }
+
+    func terminalDidResize(_ size: TerminalGridMetrics) {
+        terminalState?.terminalDidResize(size)
+    }
+
+    func terminalDidChangeFocus(_ focused: Bool) {
+        terminalState?.terminalDidChangeFocus(focused)
+    }
+
+    func terminalDidClose(processAlive: Bool) {
+        terminalState?.terminalDidClose(processAlive: processAlive)
+    }
+
+    func terminalDidFinishCommand(exitCode: Int?, durationNanos: UInt64) {
+        terminalState?.terminalDidFinishCommand(exitCode: exitCode, durationNanos: durationNanos)
+    }
+
+    func terminalDidRequestDesktopNotification(title: String, body: String) {
+        onDesktopNotification(title, body)
+    }
+}
+
+@MainActor
 final class TerminalSessionRegistry {
     private var controllers: [TerminalSessionID: LocalShellTerminalSessionController] = [:]
 
@@ -111,6 +161,13 @@ final class LocalShellTerminalSessionController: ObservableObject {
         subsystem: Bundle.main.bundleIdentifier ?? "dev.breuer.spurwechsel",
         category: "TerminalSwitchPerf"
     )
+    private static func agentStatusTrace(_ message: String) {
+        #if DEBUG
+        print(message)
+        #else
+        logger.debug("\(message, privacy: .public)")
+        #endif
+    }
 
     struct LaunchPlan {
         let workingDirectory: String
@@ -128,9 +185,11 @@ final class LocalShellTerminalSessionController: ObservableObject {
     let terminalState: TerminalViewState
     let terminalView: TerminalView
     let retainedSurface: RetainedHostedSurface<TerminalView>
+    private var terminalDelegateBridge: TerminalSurfaceDelegateBridge?
 
     private let onTitleChange: (String) -> Void
     private let onProcessTerminated: (Int32?) -> Void
+    private let onDesktopNotification: (String, String) -> Void
     private var hasProcessTerminated = false
     private var didEmitProcessTermination = false
     private var isDisposed = false
@@ -143,7 +202,8 @@ final class LocalShellTerminalSessionController: ObservableObject {
         terminalTheme: TerminalTheme = ThemeSet.default.terminalTheme,
         startProcess: Bool = true,
         onTitleChange: @escaping (String) -> Void,
-        onProcessTerminated: @escaping (Int32?) -> Void
+        onProcessTerminated: @escaping (Int32?) -> Void,
+        onDesktopNotification: @escaping (String, String) -> Void = { _, _ in }
     ) {
         self.sessionID = sessionID
         self.startupTitle = startupTitle
@@ -152,6 +212,7 @@ final class LocalShellTerminalSessionController: ObservableObject {
         self.terminalTitle = startupTitle
         self.onTitleChange = onTitleChange
         self.onProcessTerminated = onProcessTerminated
+        self.onDesktopNotification = onDesktopNotification
 
         let configuration = Self.makeTerminalConfiguration(
             startupCommand: startProcess ? launchPlan.startupCommand : nil
@@ -166,13 +227,23 @@ final class LocalShellTerminalSessionController: ObservableObject {
             workingDirectory: launchPlan.workingDirectory,
             context: .window
         )
-
         let terminalView = TerminalView(frame: .zero)
-        terminalView.delegate = terminalState
         terminalView.controller = terminalState.controller
         terminalView.configuration = terminalState.configuration
         self.terminalView = terminalView
         retainedSurface = RetainedHostedSurface(view: terminalView)
+        let terminalDelegateBridge = TerminalSurfaceDelegateBridge(
+            terminalState: terminalState,
+            onTitleChange: { [weak self] title in
+                self?.handleTitleChange(title)
+            },
+            onDesktopNotification: { [weak self] title, body in
+                self?.handleDesktopNotification(title: title, body: body)
+            }
+        )
+        self.terminalDelegateBridge = terminalDelegateBridge
+        terminalView.delegate = terminalDelegateBridge
+        Self.agentStatusTrace("[agent-status] delegate attached session=\(sessionID.uuidString) title=\(startupTitle)")
 
         terminalState.onClose = { [weak self] processAlive in
             guard let self else { return }
@@ -187,6 +258,18 @@ final class LocalShellTerminalSessionController: ObservableObject {
         }
 
         onTitleChange(startupTitle)
+    }
+
+    private func handleTitleChange(_ title: String) {
+        terminalTitle = title
+        onTitleChange(title)
+    }
+
+    private func handleDesktopNotification(title: String, body: String) {
+        let compactBody = body.replacingOccurrences(of: "\n", with: "\\n")
+        let bodyPreview = compactBody.count > 240 ? String(compactBody.prefix(240)) + "..." : compactBody
+        Self.agentStatusTrace("[agent-status] desktop notification session=\(self.sessionID.uuidString) title=\(title) bodyPreview=\(bodyPreview)")
+        onDesktopNotification(title, body)
     }
 
     var debugLabel: String {

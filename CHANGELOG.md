@@ -8,6 +8,8 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 
 ### Added
 - New config setting `terminal.commandKeyMapsToControl` (default `false`) to optionally remap `Command+<key>` into `Control+<key>` while terminal or agent terminal surface is focused.
+- OpenCode Warp rich-status mapping now matches Warp local-agent semantics, including `session_start -> running`, waiting states for approval/input events, and `idle_prompt` as a no-op.
+- OpenCode agent sessions now read OpenCode config (`opencode.json`) to decide status mode: fallback sessions start `running`, Warp-plugin sessions start `idle` and transition with Warp events.
 
 ### Fixed
 - Agent sessions now auto-remove when process exits or fails, matching `Remove Agent` cleanup so dead terminals do not stay visible.
