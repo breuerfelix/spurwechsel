@@ -178,14 +178,6 @@ struct CodeServerConfig: Equatable, Hashable {
     }
 }
 
-struct TerminalConfig: Equatable, Hashable {
-    var commandKeyMapsToControl: Bool
-
-    init(commandKeyMapsToControl: Bool = false) {
-        self.commandKeyMapsToControl = commandKeyMapsToControl
-    }
-}
-
 enum ThemeToken: String, CaseIterable, Hashable, Codable {
     case background
     case backgroundSecondary
@@ -408,7 +400,6 @@ struct SpurwechselConfig: Equatable {
         )
     ]
     static let defaultTheme = ThemeSet.default
-    static let defaultTerminal = TerminalConfig()
 
     var version: Int
     var codeServer: CodeServerConfig
@@ -416,7 +407,6 @@ struct SpurwechselConfig: Equatable {
     var projects: [ProjectRecord]
     var agents: [AgentConfigRecord]
     var shortcuts: [ShortcutRecord]
-    var terminal: TerminalConfig
     var theme: ThemeSet
 
     init(
@@ -426,7 +416,6 @@ struct SpurwechselConfig: Equatable {
         projects: [ProjectRecord] = [],
         agents: [AgentConfigRecord] = SpurwechselConfig.defaultAgents,
         shortcuts: [ShortcutRecord] = SpurwechselConfig.defaultShortcuts,
-        terminal: TerminalConfig = SpurwechselConfig.defaultTerminal,
         theme: ThemeSet = SpurwechselConfig.defaultTheme
     ) {
         self.version = version
@@ -435,7 +424,6 @@ struct SpurwechselConfig: Equatable {
         self.projects = projects
         self.agents = agents
         self.shortcuts = shortcuts
-        self.terminal = terminal
         self.theme = theme
     }
 

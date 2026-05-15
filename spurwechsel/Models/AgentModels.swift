@@ -300,6 +300,7 @@ struct AgentSession: Identifiable, Equatable, Hashable {
     var pluginVersion: String?
     var expectsRichStatus: Bool
     var hasRichStatus: Bool
+    var runtimeReady: Bool
     var showsWarpPluginWarning: Bool {
         kind == .opencode && !expectsRichStatus
     }
@@ -319,7 +320,8 @@ struct AgentSession: Identifiable, Equatable, Hashable {
         exitCode: Int32?,
         pluginVersion: String? = nil,
         expectsRichStatus: Bool = false,
-        hasRichStatus: Bool = false
+        hasRichStatus: Bool = false,
+        runtimeReady: Bool = false
     ) {
         self.id = id
         self.workspaceSelection = workspaceSelection
@@ -336,6 +338,7 @@ struct AgentSession: Identifiable, Equatable, Hashable {
         self.pluginVersion = pluginVersion
         self.expectsRichStatus = expectsRichStatus
         self.hasRichStatus = hasRichStatus
+        self.runtimeReady = runtimeReady
     }
 }
 

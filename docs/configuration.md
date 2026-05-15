@@ -27,7 +27,6 @@ File is app-owned and rewritten when missing or stale (for example after app upd
 - `projects`
 - `agents`
 - `shortcuts`
-- `terminal`
 - `theme`
 
 Raw file models live in `spurwechsel/Models/ConfigFileModels.swift`.
@@ -84,12 +83,6 @@ Each shortcut stores:
 `command` accepts any command ID from command registry (`toggle-command-bar`, `create-agent`, `open-vscode-view`, etc).
 
 Resolver enforces one binding per command and removes signature collisions.
-
-## Terminal Records
-`terminal.commandKeyMapsToControl` controls keyboard remap behavior on terminal-backed surfaces.
-
-- default: `false`
-- when `true`: `Command+<key>` is forwarded to terminal surfaces as `Control+<key>`
 
 ## Theme Records
 Theme config may override any subset of light or dark palette tokens. Missing values inherit from defaults.

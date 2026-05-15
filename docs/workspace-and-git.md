@@ -8,8 +8,9 @@ Main files:
 
 - `spurwechsel/State/ProjectConfigStore.swift`
 - `spurwechsel/State/GitRepositoryService.swift`
-- `spurwechsel/State/AppCoordinator+CoreFlows.swift`
-- `spurwechsel/State/AppState.swift`
+- `spurwechsel/Features/Workspace/WorkspaceFeature.swift`
+- `spurwechsel/Features/Workspace/WorkspaceFeatureModels.swift`
+- `spurwechsel/App/AppFeature.swift`
 
 ## Data Model
 - `ProjectRecord`: persisted project folder in config
@@ -18,69 +19,53 @@ Main files:
 - `WorkspaceSelection`: selected `project` or `worktree`
 
 ## Refresh Flow
-`refreshProjectsFromConfig()` does real reload:
+Config refresh path:
 
-1. Iterate configured `ProjectRecord`s.
-2. Try opening each path with `libgit2`.
-3. If Git repo: read repo root, current branch, linked worktrees.
-4. If not Git repo but valid directory: keep as plain project with no branch/worktrees.
+1. Load config records.
+2. Resolve each path with git service.
+3. Git path: map repo root/branch/worktrees.
+4. Non-git path: keep plain project node.
 5. Preserve stable IDs by normalized path when possible.
 6. Replace `ProjectsState`.
-7. Prune stale agents, terminals, VSCode runtimes, and surface tabs.
+7. Prune stale agent/editor/workbench/runtime state.
 
 ## Import Flow
-`importProjects(from:)`:
-
-1. normalize selected directory paths
-2. skip duplicates and non-directories
-3. append records to config
-4. save config
-5. refresh runtime project tree
+1. Normalize selected directory paths.
+2. Skip duplicates and non-directories.
+3. Append records to config.
+4. Save config.
+5. Refresh runtime project tree.
 
 ## External Deep-Link Open Flow
 Deep-link action: `spurwechsel://open-workspace?workspace_b64=...&project_b64=...`
 
-1. Decode and validate absolute workspace + project paths.
-2. Try resolving workspace by exact normalized path match:
-   - project root path
-   - linked worktree path
-3. If unresolved, refresh config snapshot once and retry.
-4. If still unresolved and project root is not configured, import project root record, refresh, retry.
-5. Select resolved workspace and keep current main view behavior.
-6. Reuse existing main window, bring app to foreground, and restore window if minimized.
-
-Notes:
-- config persists project roots only (Git and non-Git)
-- linked worktrees are discovered for Git projects and never persisted as separate project records
-- normal close-button quit behavior stays unchanged; warm deep links reuse scene routing and foreground existing main window
+1. Decode and validate workspace/project paths.
+2. Resolve selection by normalized path in current state.
+3. If unresolved, refresh config snapshot and retry.
+4. If still unresolved and project root missing, import project root and retry.
+5. Select resolved workspace and keep current main-view behavior.
+6. Bring existing app window to foreground.
 
 ## Worktree Creation
 `GitRepositoryService.createWorktree(...)`:
 
-- validates worktree name with `^[A-Za-z0-9._-]+$`
-- refuses detached HEAD repos
-- creates new branch from current HEAD
+- validates worktree name (`^[A-Za-z0-9._-]+$`)
+- rejects detached HEAD
+- creates branch from current HEAD
 - creates linked worktree via `libgit2`
 
-Default worktree root:
+Default root:
 
 - `~/.spurwechsel/worktrees/<project-slug>/<worktree-name>`
 
-Override with:
+Override env:
 
 - `SPURWECHSEL_WORKTREES_ROOT`
 
 ## Worktree Deletion
-Deletion path uses command-bar confirmation, then:
+Deletion path:
 
-- prune linked worktree with `libgit2`
-- try removing working tree directory
-- clean agent terminals, workspace terminal, VSCode runtime, and tabs for deleted workspace
-- refresh project list from config
-
-## Important Invariants
-- repo root is primary project node
-- non-Git project has `isGitRepository == false`, empty branch label, no worktrees
-- linked worktrees never become separate persisted project records
-- stable IDs come from normalized filesystem path, not display name
-- stale runtime resources are pruned after every refresh
+- prune linked worktree via `libgit2`
+- try removing worktree directory
+- clean related agent terminals, workspace terminals, VSCode runtimes, and surface tabs
+- refresh projects from config
