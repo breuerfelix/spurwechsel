@@ -20,6 +20,7 @@ COMMON_FLAGS=(
   -destination "generic/platform=macOS"
   -derivedDataPath "$DERIVED_DATA_PATH"
   -clonedSourcePackagesDirPath "$PACKAGE_CACHE_PATH"
+  -skipMacroValidation
   CODE_SIGNING_ALLOWED=NO
   CODE_SIGNING_REQUIRED=NO
   CODE_SIGN_IDENTITY=

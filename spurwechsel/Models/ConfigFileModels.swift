@@ -25,7 +25,6 @@ struct UserConfigFile: Codable, Equatable {
     var projects: [UserProjectRecord]?
     var agents: [UserAgentConfigRecord]?
     var shortcuts: [UserShortcutRecord]?
-    var terminal: UserTerminalConfig?
     var theme: UserThemeConfig?
 
     init(
@@ -35,7 +34,6 @@ struct UserConfigFile: Codable, Equatable {
         projects: [UserProjectRecord]? = nil,
         agents: [UserAgentConfigRecord]? = nil,
         shortcuts: [UserShortcutRecord]? = nil,
-        terminal: UserTerminalConfig? = nil,
         theme: UserThemeConfig? = nil
     ) {
         self.version = version
@@ -44,7 +42,6 @@ struct UserConfigFile: Codable, Equatable {
         self.projects = projects
         self.agents = agents
         self.shortcuts = shortcuts
-        self.terminal = terminal
         self.theme = theme
     }
 
@@ -79,9 +76,6 @@ struct UserConfigFile: Codable, Equatable {
                     modifiers: $0.modifiers.map(\.rawValue)
                 )
             },
-            terminal: UserTerminalConfig(
-                commandKeyMapsToControl: config.terminal.commandKeyMapsToControl
-            ),
             theme: UserThemeConfig(
                 light: UserThemePalette(values: config.theme.light.asHexMap),
                 dark: UserThemePalette(values: config.theme.dark.asHexMap)
@@ -186,14 +180,6 @@ struct UserThemeConfig: Codable, Equatable {
     init(light: UserThemePalette? = nil, dark: UserThemePalette? = nil) {
         self.light = light
         self.dark = dark
-    }
-}
-
-struct UserTerminalConfig: Codable, Equatable {
-    var commandKeyMapsToControl: Bool?
-
-    init(commandKeyMapsToControl: Bool? = nil) {
-        self.commandKeyMapsToControl = commandKeyMapsToControl
     }
 }
 
