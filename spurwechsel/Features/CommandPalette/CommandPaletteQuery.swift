@@ -48,10 +48,16 @@ enum CommandPaletteQuery {
         }
 
         let scored = items.enumerated().compactMap { index, item -> (CommandBarPickerItem, Int, Int)? in
-            let candidateStrings = [item.title, item.subtitle]
-            let bestScore = candidateStrings.compactMap {
-                fuzzyScore(query: trimmedQuery, candidate: $0)
-            }.min()
+            let primaryScore = fuzzyScore(
+                query: trimmedQuery,
+                candidate: item.primarySearchText
+            )
+            let secondaryScore = fuzzyScore(
+                query: trimmedQuery,
+                candidate: item.secondarySearchText
+            ).map { $0 + item.secondarySearchPenalty }
+            let bestScore = [primaryScore, secondaryScore].compactMap { $0 }.min()
+
             guard let bestScore else {
                 return nil
             }

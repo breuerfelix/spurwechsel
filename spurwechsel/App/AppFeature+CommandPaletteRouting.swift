@@ -123,7 +123,10 @@ extension AppFeature {
                     title: node.title,
                     subtitle: node.branchName,
                     symbolName: node.isProject ? "folder" : "point.3.filled.connected.trianglepath.dotted",
-                    payload: .selectWorkspace(node.selection)
+                    payload: .selectWorkspace(node.selection),
+                    primarySearchText: node.title,
+                    secondarySearchText: node.branchName,
+                    secondarySearchPenalty: 50
                 )
             }
             return .send(.commandPalette(.presentPicker(
