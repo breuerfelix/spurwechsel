@@ -6,6 +6,7 @@ struct CommandPaletteCommandListView: View {
     let theme: SpurTheme
     let shortcutBinding: (CommandID) -> ResolvedShortcutBinding?
     let searchFieldShouldFocus: Bool
+    let searchFieldFocusRequestID: Int
     let maxHeight: CGFloat
     let moveHighlightedCommand: (Int) -> Void
     let executeCommand: (CommandID) -> Void
@@ -18,6 +19,7 @@ struct CommandPaletteCommandListView: View {
                 query: commandBar.query,
                 placeholder: "Type command",
                 isFocused: searchFieldShouldFocus,
+                focusRequestID: searchFieldFocusRequestID,
                 theme: theme,
                 onSubmit: submitCommandBar,
                 onMoveUp: { moveHighlightedCommand(-1) },

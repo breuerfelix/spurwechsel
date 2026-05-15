@@ -26,6 +26,7 @@ struct CommandPaletteOverlayView: View {
 
     @FocusState private var focusedField: CommandPaletteFocusField?
     @State private var searchFieldShouldFocus = false
+    @State private var searchFieldFocusRequestID = 0
     @State private var confirmationFocusRequestID = 0
 
     var body: some View {
@@ -76,6 +77,7 @@ struct CommandPaletteOverlayView: View {
                     theme: theme,
                     shortcutBinding: shortcutBinding,
                     searchFieldShouldFocus: searchFieldShouldFocus,
+                    searchFieldFocusRequestID: searchFieldFocusRequestID,
                     maxHeight: resultsRegionMaxHeight(within: maxHeight),
                     moveHighlightedCommand: moveHighlightedCommand,
                     executeCommand: executeCommand,
@@ -100,6 +102,7 @@ struct CommandPaletteOverlayView: View {
                     filteredPickerItems: filteredPickerItems,
                     theme: theme,
                     searchFieldShouldFocus: searchFieldShouldFocus,
+                    searchFieldFocusRequestID: searchFieldFocusRequestID,
                     maxHeight: resultsRegionMaxHeight(within: maxHeight),
                     moveHighlightedCommand: moveHighlightedCommand,
                     setHighlightedIndex: setHighlightedCommandIndex,
@@ -141,6 +144,7 @@ struct CommandPaletteOverlayView: View {
         case .commandList, .picker:
             focusedField = nil
             searchFieldShouldFocus = true
+            searchFieldFocusRequestID += 1
         }
     }
 

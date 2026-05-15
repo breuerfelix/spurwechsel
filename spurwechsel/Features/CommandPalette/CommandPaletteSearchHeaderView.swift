@@ -4,6 +4,7 @@ struct CommandPaletteSearchHeaderView: View {
     let query: String
     let placeholder: String
     let isFocused: Bool
+    let focusRequestID: Int
     let theme: SpurTheme
     let onSubmit: () -> Void
     let onMoveUp: () -> Void
@@ -22,6 +23,7 @@ struct CommandPaletteSearchHeaderView: View {
                 ),
                 placeholder: placeholder,
                 isFocused: isFocused,
+                focusRequestID: focusRequestID,
                 onSubmit: onSubmit,
                 onMoveUp: onMoveUp,
                 onMoveDown: onMoveDown

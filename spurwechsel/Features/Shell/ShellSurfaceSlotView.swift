@@ -6,6 +6,7 @@ struct ShellSurfaceSlotView: View {
     let slot: SurfaceSlot
     let surfaceID: SurfaceTabID?
     let shell: ShellFeature.State
+    let isCommandPalettePresented: Bool
     let workbench: WorkbenchFeature.State
     let projects: ProjectsState
     let agents: AgentState
@@ -78,6 +79,9 @@ struct ShellSurfaceSlotView: View {
         tab: SurfaceTab,
         isSurfaceSelected: Bool
     ) -> some View {
+        // Command palette owns keyboard focus while visible; suppress deferred surface focus steals.
+        let effectiveFocusRequest = isCommandPalettePresented ? nil : shell.surfaceFocusRequest
+
         switch surfaceID {
         case let .agentSession(sessionID):
             AgentMainView(
@@ -85,7 +89,7 @@ struct ShellSurfaceSlotView: View {
                 workspaceSelection: tab.workspaceSelection,
                 isSurfaceSelected: isSurfaceSelected,
                 surfaceSlot: slot,
-                focusRequest: shell.surfaceFocusRequest,
+                focusRequest: effectiveFocusRequest,
                 onSurfaceFocused: onSurfaceFocused,
                 theme: theme,
                 terminalTheme: terminalTheme,
@@ -102,7 +106,7 @@ struct ShellSurfaceSlotView: View {
                 workspaceSelection: tab.workspaceSelection,
                 isSurfaceSelected: isSurfaceSelected,
                 surfaceSlot: slot,
-                focusRequest: shell.surfaceFocusRequest,
+                focusRequest: effectiveFocusRequest,
                 onSurfaceFocused: onSurfaceFocused,
                 theme: theme,
                 terminalTheme: terminalTheme,
@@ -118,7 +122,7 @@ struct ShellSurfaceSlotView: View {
                 workspaceSelection: tab.workspaceSelection,
                 isSurfaceSelected: isSurfaceSelected,
                 surfaceSlot: slot,
-                focusRequest: shell.surfaceFocusRequest,
+                focusRequest: effectiveFocusRequest,
                 onSurfaceFocused: onSurfaceFocused,
                 theme: theme,
                 terminalTheme: terminalTheme,
@@ -133,7 +137,7 @@ struct ShellSurfaceSlotView: View {
                 workspaceID: workspaceID,
                 isSurfaceSelected: isSurfaceSelected,
                 surfaceSlot: slot,
-                focusRequest: shell.surfaceFocusRequest,
+                focusRequest: effectiveFocusRequest,
                 onSurfaceFocused: onSurfaceFocused,
                 theme: theme,
                 editorStore: editorStore,
