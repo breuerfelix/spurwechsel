@@ -6,6 +6,9 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 
 ## [Unreleased]
 
+### Fixed
+- Agent sessions now auto-remove when process exits or fails, matching `Remove Agent` cleanup so dead terminals do not stay visible.
+
 ## [0.5.0] - 2026-05-05
 
 ### Added

@@ -797,6 +797,15 @@ extension AppCoordinator {
         syncTerminalSurfaceActivation()
     }
 
+    private func handleAgentProcessTerminated(sessionID: UUID, exitCode: Int32?) {
+        guard agents.sessions.contains(where: { $0.id == sessionID }) else {
+            return
+        }
+
+        agents.updateExitCode(for: sessionID, exitCode: exitCode)
+        deleteAgent(sessionID: sessionID)
+    }
+
     @discardableResult
     func importProjects(from urls: [URL]) -> Int {
         let selectedPaths = urls.map(\.path).joined(separator: " | ")
@@ -1430,14 +1439,7 @@ extension AppCoordinator {
                     guard let self else {
                         return
                     }
-                    self.agents.updateExitCode(for: session.id, exitCode: exitCode)
-                    let status: AgentSessionStatus
-                    if let exitCode {
-                        status = (exitCode == 0) ? .exited : .failed
-                    } else {
-                        status = .failed
-                    }
-                    self.agents.updateStatus(for: session.id, status: status)
+                    self.handleAgentProcessTerminated(sessionID: session.id, exitCode: exitCode)
                 }
             )
         }
