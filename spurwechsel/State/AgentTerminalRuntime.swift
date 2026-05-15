@@ -199,16 +199,17 @@ final class LocalShellTerminalSessionController: ObservableObject {
         sessionID: UUID,
         startupTitle: String,
         launchPlan: LaunchPlan,
-        terminalTheme: TerminalTheme = ThemeSet.default.terminalTheme,
+        terminalTheme: TerminalTheme? = nil,
         startProcess: Bool = true,
         onTitleChange: @escaping (String) -> Void,
         onProcessTerminated: @escaping (Int32?) -> Void,
         onDesktopNotification: @escaping (String, String) -> Void = { _, _ in }
     ) {
+        let resolvedTerminalTheme = terminalTheme ?? ThemeSet.default.terminalTheme
         self.sessionID = sessionID
         self.startupTitle = startupTitle
         self.launchPlan = launchPlan
-        self.terminalTheme = terminalTheme
+        self.terminalTheme = resolvedTerminalTheme
         self.terminalTitle = startupTitle
         self.onTitleChange = onTitleChange
         self.onProcessTerminated = onProcessTerminated
@@ -218,7 +219,7 @@ final class LocalShellTerminalSessionController: ObservableObject {
             startupCommand: startProcess ? launchPlan.startupCommand : nil
         )
         terminalState = TerminalViewState(
-            theme: terminalTheme,
+            theme: resolvedTerminalTheme,
             terminalConfiguration: configuration
         )
         terminalState.configuration = TerminalSurfaceOptions(
