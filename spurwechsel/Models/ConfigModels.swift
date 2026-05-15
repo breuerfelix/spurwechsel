@@ -59,7 +59,10 @@ struct ResolvedShortcutBinding: Equatable, Hashable {
     }
 
     var displayLabel: String {
-        let modifierGlyphs = ShortcutModifier.displayOrder.compactMap { modifier -> String? in
+        let displayOrder = hidesShiftModifierInDisplayLabel
+            ? ShortcutModifier.displayOrder.filter { $0 != .shift }
+            : ShortcutModifier.displayOrder
+        let modifierGlyphs = displayOrder.compactMap { modifier -> String? in
             guard modifiers.contains(modifier) else {
                 return nil
             }
@@ -67,6 +70,12 @@ struct ResolvedShortcutBinding: Equatable, Hashable {
         }
         return modifierGlyphs.joined() + key.uppercased()
     }
+
+    private var hidesShiftModifierInDisplayLabel: Bool {
+        modifiers.contains(.shift) && Self.keysWithImplicitShift.contains(key)
+    }
+
+    private static let keysWithImplicitShift: Set<String> = ["+"]
 
     static func normalizeKey(_ rawKey: String) -> String {
         rawKey
@@ -179,10 +188,10 @@ struct CodeServerConfig: Equatable, Hashable {
 }
 
 struct TerminalConfig: Equatable, Hashable {
-    var commandKeyMapsToControl: Bool
+    var swapCommandAndControlWhenFocused: Bool
 
-    init(commandKeyMapsToControl: Bool = false) {
-        self.commandKeyMapsToControl = commandKeyMapsToControl
+    init(swapCommandAndControlWhenFocused: Bool = false) {
+        self.swapCommandAndControlWhenFocused = swapCommandAndControlWhenFocused
     }
 }
 
@@ -405,10 +414,19 @@ struct SpurwechselConfig: Equatable {
             command: .openVSCodeView,
             key: "o",
             modifiers: [.command, .shift]
+        ),
+        ShortcutRecord(
+            command: .increaseTerminalFontSize,
+            key: "+",
+            modifiers: [.command, .shift]
+        ),
+        ShortcutRecord(
+            command: .decreaseTerminalFontSize,
+            key: "-",
+            modifiers: [.command]
         )
     ]
     static let defaultTheme = ThemeSet.default
-    static let defaultTerminal = TerminalConfig()
 
     var version: Int
     var codeServer: CodeServerConfig
@@ -426,7 +444,7 @@ struct SpurwechselConfig: Equatable {
         projects: [ProjectRecord] = [],
         agents: [AgentConfigRecord] = SpurwechselConfig.defaultAgents,
         shortcuts: [ShortcutRecord] = SpurwechselConfig.defaultShortcuts,
-        terminal: TerminalConfig = SpurwechselConfig.defaultTerminal,
+        terminal: TerminalConfig = TerminalConfig(),
         theme: ThemeSet = SpurwechselConfig.defaultTheme
     ) {
         self.version = version

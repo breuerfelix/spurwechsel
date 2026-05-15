@@ -121,13 +121,10 @@ shortcuts:
     key: o
     modifiers: [command, shift]
 
-terminal:
-  commandKeyMapsToControl: false
-
 theme: {}
 ```
 
-`projects` stores repo roots only. Worktrees come from git state. `terminal.commandKeyMapsToControl` defaults to `false` and can remap `Command+<key>` to `Control+<key>` for terminal-backed surfaces. `theme: {}` means built-in light and dark palettes stay active until you override tokens.
+`projects` stores repo roots only. Worktrees come from git state. `theme: {}` means built-in light and dark palettes stay active until you override tokens.
 
 <details>
 <summary>Default theme values</summary>

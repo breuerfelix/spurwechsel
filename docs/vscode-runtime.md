@@ -1,57 +1,54 @@
 # VSCode Runtime
 
 ## Purpose
+
 VSCode view is embedded `code-server` process plus `WKWebView` host.
 
 Main files:
 
 - `spurwechsel/State/VSCodeServerRuntime.swift`
 - `spurwechsel/State/BrowserWebViewRuntime.swift`
-- `spurwechsel/State/AppCoordinator+CoreFlows.swift`
-- `spurwechsel/Views/VSCode/VSCodeMainView.swift`
+- `spurwechsel/Features/Editor/EditorRuntime.swift`
+- `spurwechsel/Features/Editor/EditorFeature.swift`
+- `spurwechsel/Features/Editor/VSCodeMainView.swift`
 - `spurwechsel/Views/VSCode/EmbeddedWebViewHost.swift`
 
 ## Startup Flow
-`ensureVSCodeServerForSelectedWorkspace(forceRestart:)`:
 
-1. require selected workspace path
-2. ensure per-workspace web runtime exists
-3. reuse active server when possible
-4. otherwise clear previous addresses and set status to `starting`
-5. start `VSCodeServerRuntime` on configured port
+Reducer/runtime flow:
+
+1. Require selected workspace path.
+2. Set session status to `starting`.
+3. `EditorFeature` starts shared `VSCodeServerRuntime` through `VSCodeRuntimeClient` on configured port if no active server exists.
+4. `EditorRuntime` forwards runtime events (`starting`, `serverReady`, `failed`, `stopped`) back into `.editor(.runtimeEvent(...))`.
+5. `EditorFeature` reuses running server across workspace switches and loads workspace URL into retained browser runtime.
 
 ## Process Launch
-Runtime launches user shell with `-ilc` and executes:
 
-- `code-server`
-- `--auth none`
-- `--disable-workspace-trust`
-- `--disable-getting-started-override`
-- `--user-data-dir ~/.vscode`
-- `--extensions-dir ~/.vscode/extensions`
-- `--bind-addr 127.0.0.1:<port>`
+Runtime launches user shell with `-ilc` and executes `code-server` bound to `127.0.0.1:<port>`.
 
-Port comes from config `codeServer.port`. Default: `8080`.
-
-## Readiness Detection
-Runtime parses stdout and stderr lines looking for local server URL. It also detects:
-
-- auth prompts
-- missing `code-server`
-- port collisions
-- startup failure before URL exists
+Port source: config `codeServer.port` (default `8080`).
 
 ## Browser Mount
-After server URL exists, coordinator builds workspace URL:
+
+Workspace URL format:
 
 - `http://127.0.0.1:<port>/?folder=<workspace-path>`
 
 That URL loads into `EmbeddedWebViewRuntime`.
 
 ## Warm Runtime Cache
-Coordinator keeps up to `6` `WKWebView` runtimes warm by workspace ID. Oldest gets evicted first.
+
+`EditorRuntime` keeps up to `6` `WKWebView` runtimes warm by workspace ID. Oldest gets evicted first.
+
+Inactive retained webviews must be hidden with `isHidden` while they are off-screen. The retained host does that in `EmbeddedWebViewHost`, which avoids black compositing artifacts during fast workspace switching.
+
+`EditorRuntime` also forwards browser navigation events (`started`, `committed`, `finished`, `failed`) so overlay state follows actual page readiness instead of only process state.
+
+Browser loads now return a structured runtime result (`startedNavigation`, `alreadyRequestedPage(isLoading:)`, `runtimeUnavailable`) so `EditorFeature` can decide overlay readiness from actual `WKWebView` load state even when no new navigation starts.
 
 ## Failure States
+
 `VSCodeServerStatus` includes:
 
 - `missingWorkspace`
@@ -65,7 +62,10 @@ Coordinator keeps up to `6` `WKWebView` runtimes warm by workspace ID. Oldest ge
 - `startupFailed`
 - `urlNotFound`
 
-`VSCodeMainView` maps those to status overlays until browser content is ready.
+`VSCodeMainView` maps these to explicit status overlays until browser content is ready.
 
 ## Shutdown
-Runtime supports graceful `terminate()`, then force kill, then timeout reporting. App shutdown waits for this summary.
+
+Normal VSCode startup, reuse, browser loading, and workspace-scoped cache cleanup are editor-owned.
+
+App termination still runs VSCode shutdown alongside terminal shutdown and records timeout/force-kill summary in app state.

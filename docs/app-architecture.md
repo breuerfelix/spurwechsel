@@ -1,74 +1,82 @@
 # Spurwechsel App Architecture
 
 ## Top-Level Shape
-App uses store-plus-coordinator setup.
 
-- `spurwechsel/spurwechselApp.swift` boots app and termination coordinator
-- `spurwechsel/ContentView.swift` renders shell
-- `spurwechsel/State/SpurwechselStore.swift` builds root store graph
-- `spurwechsel/State/AppCoordinator.swift` receives intents
-- `spurwechsel/State/AppCoordinator+CoreFlows.swift` contains behavior
+App now uses TCA root store and feature reducers.
 
-## Store Graph
-`SpurwechselAppStore` owns focused child stores:
+- `spurwechsel/spurwechselApp.swift` boots app, binds dependencies, owns app delegate bridge
+- `spurwechsel/App/AppFeature.swift` is root reducer and cross-feature coordinator
+- `spurwechsel/App/AppView.swift` + `spurwechsel/Features/Shell/ShellRootView.swift` render shell
+- `spurwechsel/App/AppRuntime.swift` owns non-editor mutable runtime services (config store, UI state persistence, terminal registry)
+- `spurwechsel/Features/Editor/EditorRuntime.swift` owns the VSCode process runtime and retained webview cache
 
-- `ShellStore`
-- `WorkspaceStore`
-- `AgentSessionsStore`
-- `TerminalStore`
-- `EditorStore`
-- `CommandPaletteStore`
-- `WorkbenchStore`
+## Feature Graph
 
-This splits UI publishing by domain while still exposing one app-level object to SwiftUI.
+`AppFeature.State` composes domain reducers:
+
+- `ShellFeature`
+- `WorkbenchFeature`
+- `WorkspaceFeature`
+- `AgentFeature`
+- `EditorFeature`
+- `CommandPaletteFeature`
+- `LifecycleFeature`
 
 ## Dependency Graph
-`AppDependencies.live()` builds mutable runtime services:
 
-- `ProjectConfigStore`
-- `GitRepositoryService`
-- `TerminalSessionRegistry`
-- `VSCodeServerRuntime`
-- import URL provider
+Runtime boundaries use dependency clients in `spurwechsel/Shared/Dependencies/DependencyClients.swift`:
 
-## Intent Flow
-1. UI sends `AppIntent`.
-2. `AppCoordinator.handle(_:)` routes intent.
-3. Core flow mutates store state and starts side effects.
-4. Child stores publish changes back into SwiftUI.
+- `ConfigClient`
+- `GitClient`
+- `ImportPanelClient`
+- `TerminalRegistryClient`
+- `VSCodeRuntimeClient`
+- `AppControlClient` for direct app/window control such as quit and main-window activation
 
-External deep links use delegate path, then same coordinator core:
-1. `NSApplicationDelegate.application(_:open:)` receives URL.
-2. Delegate queues URLs during cold launch until store exists.
-3. `AppCoordinator.handleExternalURL(_:)` decodes and routes to workspace import/select flow.
+The VSCode dependency is editor-oriented: `EditorFeature` decides when to start, reuse, stop, and prune VSCode browser runtimes; `EditorRuntime` provides the imperative process and retained-webview implementation behind that boundary.
+`VSCodeRuntimeClient.loadWorkspaceInBrowser` returns a structured browser-load result, so overlay readiness remains editor-owned and does not depend on shell view switching side effects.
 
-## State Domains
-- shell/layout: theme, sidebars, preview, focus, shutdown, window activity
-- workspace: imported repos, worktrees, selection, collapse state
-- agents: configured agent sessions and selected session
-- editor: per-workspace VSCode state and warm web runtimes
-- terminal: workspace terminal attachment metadata
-- workbench: surface tabs and mounted main/preview slots
+## Action Flow
+
+1. UI sends feature or app action into `StoreOf<AppFeature>`.
+2. Child reducers mutate local state.
+3. Root reducer handles cross-feature coordination and runtime side effects.
+4. Runtime events (terminal/VSCode/webview) flow back as typed actions.
+
+Editor-specific flow:
+
+1. `AppFeature` forwards workspace-selection and visibility changes into `EditorFeature`.
+2. `EditorFeature` owns editor session state and requests runtime work through `VSCodeRuntimeClient`.
+3. `EditorRuntime` forwards `VSCodeServerRuntime` and retained webview events back as `.editor(...)` actions.
+
+External deep links:
+
+1. `NSApplicationDelegate.application(_:open:)` sends `.handleExternalURLs`.
+2. `AppFeature` decodes and routes to workspace refresh/import/select path.
+3. App window activation runs through dependency client callback.
 
 ## Key Invariants
+
 - single main app window
 - one selected workspace at time
 - one selected main surface tab at time
-- same surface ID cannot mount in both main and preview slots
-- agent terminal controllers are reused by stable session IDs
-- workspace terminal controllers are reused by stable workspace IDs
-- config file is normalized before save
+- same surface ID never mounted in both main and preview
+- terminal controllers reused by stable session/workspace IDs
+- VSCode uses one shared `code-server` process; workspace switching reuses server and swaps cached browser view URL
+- config load/save goes through `ConfigClient`
 
-## Shutdown Model
-Termination path lives in `AppTerminationCoordinator` plus `prepareForTermination()`.
+## Shutdown
 
-- app asks terminal registry to close all sessions
-- app asks `VSCodeServerRuntime` to stop
-- grace timeout may escalate to force kill
-- summary returns forced kill count and timeout count
+Termination path is reducer-driven:
 
-## Best Entry Points For Changes
-- navigation or layout: `ContentView.swift`, `AppState.swift`, `AppCoordinator+CoreFlows.swift`
-- project/worktree logic: `ProjectConfigStore.swift`, `GitRepositoryService.swift`
-- agent launch behavior: `AgentTerminalRuntime.swift`, `AppCoordinator+CoreFlows.swift`
-- VSCode behavior: `VSCodeServerRuntime.swift`, `BrowserWebViewRuntime.swift`
+- `.prepareForTermination` starts shutdown state
+- terminal and VSCode runtime shutdown run concurrently
+- reducer stores summary (`forcedKillCount`, `timedOutCount`)
+
+## Best Entry Points
+
+- root coordination: `spurwechsel/App/AppFeature.swift`
+- shell/layout behavior: `spurwechsel/Features/Shell/*`
+- workspace + git: `spurwechsel/Features/Workspace/*`, `spurwechsel/State/GitRepositoryService.swift`
+- agent runtime: `spurwechsel/Features/Agent/*`, `spurwechsel/State/AgentTerminalRuntime.swift`
+- VSCode runtime: `spurwechsel/Features/Editor/*`, `spurwechsel/Features/Editor/EditorRuntime.swift`, `spurwechsel/State/VSCodeServerRuntime.swift`, `spurwechsel/State/BrowserWebViewRuntime.swift`

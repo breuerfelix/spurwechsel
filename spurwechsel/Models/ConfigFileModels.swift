@@ -80,7 +80,7 @@ struct UserConfigFile: Codable, Equatable {
                 )
             },
             terminal: UserTerminalConfig(
-                commandKeyMapsToControl: config.terminal.commandKeyMapsToControl
+                swapCommandAndControlWhenFocused: config.terminal.swapCommandAndControlWhenFocused
             ),
             theme: UserThemeConfig(
                 light: UserThemePalette(values: config.theme.light.asHexMap),
@@ -95,6 +95,14 @@ struct UserCodeServerConfig: Codable, Equatable {
 
     init(port: Int? = nil) {
         self.port = port
+    }
+}
+
+struct UserTerminalConfig: Codable, Equatable {
+    var swapCommandAndControlWhenFocused: Bool?
+
+    init(swapCommandAndControlWhenFocused: Bool? = nil) {
+        self.swapCommandAndControlWhenFocused = swapCommandAndControlWhenFocused
     }
 }
 
@@ -186,14 +194,6 @@ struct UserThemeConfig: Codable, Equatable {
     init(light: UserThemePalette? = nil, dark: UserThemePalette? = nil) {
         self.light = light
         self.dark = dark
-    }
-}
-
-struct UserTerminalConfig: Codable, Equatable {
-    var commandKeyMapsToControl: Bool?
-
-    init(commandKeyMapsToControl: Bool? = nil) {
-        self.commandKeyMapsToControl = commandKeyMapsToControl
     }
 }
 

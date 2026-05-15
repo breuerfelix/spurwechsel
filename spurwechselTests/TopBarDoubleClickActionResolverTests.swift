@@ -34,7 +34,10 @@ final class TopBarDoubleClickActionResolverTests: XCTestCase {
 
     func testResolveUsesLegacyMiniaturizeFlagWhenActionMissing() {
         let defaults = makeDefaults()
+        defaults.set(Data([0x00]), forKey: "AppleActionOnDoubleClick")
+        defaults.removeObject(forKey: "AppleMiniaturizeOnDoubleClick")
         defaults.set(true, forKey: "AppleMiniaturizeOnDoubleClick")
+        defaults.synchronize()
 
         XCTAssertEqual(
             TopBarDoubleClickActionResolver.resolve(userDefaults: defaults),

@@ -81,15 +81,35 @@ Each shortcut stores:
 - `key`
 - `modifiers`
 
-`command` accepts any command ID from command registry (`toggle-command-bar`, `create-agent`, `open-vscode-view`, etc).
+`command` accepts any command ID from command registry (`toggle-command-bar`, `create-agent`, `toggle-voice-input`, `open-vscode-view`, etc).
 
 Resolver enforces one binding per command and removes signature collisions.
 
 ## Terminal Records
-`terminal.commandKeyMapsToControl` controls keyboard remap behavior on terminal-backed surfaces.
+Terminal config stores:
 
-- default: `false`
-- when `true`: `Command+<key>` is forwarded to terminal surfaces as `Control+<key>`
+- `swapCommandAndControlWhenFocused`
+
+When enabled, Spurwechsel swaps `command` and `control` only for focused terminal input, including agent terminals. App shortcuts still win first, so configured bindings like `⌘K` keep triggering app commands instead of sending swapped input into terminal.
+
+Embedded terminals also import a curated subset of Ghostty user config from default Ghostty paths (if present), with later files overriding earlier ones and `config-file` includes resolved in Ghostty order. Supported imported keys:
+
+- `font-family`
+- `font-size`
+- `font-thicken`
+- `font-thicken-strength`
+- `cursor-style`
+- `cursor-style-blink`
+- `cursor-opacity`
+- `selection-clear-on-copy`
+- `selection-clear-on-typing`
+- `selection-word-chars`
+- `mouse-hide-while-typing`
+- `mouse-scroll-multiplier`
+- `copy-on-select`
+- `scrollback-limit`
+
+Non-curated keys are ignored for Spurwechsel’s embedded terminal runtime.
 
 ## Theme Records
 Theme config may override any subset of light or dark palette tokens. Missing values inherit from defaults.

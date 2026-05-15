@@ -6,73 +6,29 @@
 //
 
 import AppKit
+import ComposableArchitecture
 import GhosttyTerminal
 import SwiftUI
 
 final class AppTerminationCoordinator: NSObject, NSApplicationDelegate {
-    weak var store: SpurwechselAppStore? {
-        didSet {
-            drainPendingExternalURLs()
-        }
-    }
-    private var inFlightTerminationTask: Task<Void, Never>?
-    private var pendingExternalURLs: [URL] = []
-
     func applicationDidFinishLaunching(_ notification: Notification) {
         UserDefaults.standard.set(false, forKey: "ApplePressAndHoldEnabled")
         TerminalDebugLog.enable(.all)
-        drainPendingExternalURLs()
+        AppLifecycleBridge.shared.applicationDidFinishLaunching()
     }
 
     func application(_ application: NSApplication, open urls: [URL]) {
-        guard !urls.isEmpty else {
-            return
-        }
-
-        guard let store else {
-            pendingExternalURLs.append(contentsOf: urls)
-            return
-        }
-
-        for url in urls {
-            store.handleExternalURL(url)
-        }
+        AppLifecycleBridge.shared.open(urls: urls)
     }
 
     func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
-        guard let store else {
-            return .terminateNow
+        AppLifecycleBridge.shared.requestTermination { shouldTerminate in
+            NSApp.reply(toApplicationShouldTerminate: shouldTerminate)
         }
-
-        guard inFlightTerminationTask == nil else {
-            return .terminateLater
-        }
-
-        inFlightTerminationTask = Task { [weak self, weak store] in
-            _ = await store?.prepareForTermination()
-            await MainActor.run {
-                NSApp.reply(toApplicationShouldTerminate: true)
-                self?.inFlightTerminationTask = nil
-            }
-        }
-
-        return .terminateLater
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool {
         false
-    }
-
-    private func drainPendingExternalURLs() {
-        guard let store, !pendingExternalURLs.isEmpty else {
-            return
-        }
-
-        let urls = pendingExternalURLs
-        pendingExternalURLs.removeAll()
-        for url in urls {
-            store.handleExternalURL(url)
-        }
     }
 }
 
@@ -80,40 +36,99 @@ final class AppTerminationCoordinator: NSObject, NSApplicationDelegate {
 struct spurwechselApp: App {
     @NSApplicationDelegateAdaptor(AppTerminationCoordinator.self)
     private var terminationCoordinator
-    @StateObject private var store = SpurwechselAppStore()
+
+    private let composition: AppComposition
+    @State private var appStore: StoreOf<AppFeature>
+
+    init() {
+        let composition = AppComposition.live(lifecycleBridge: .shared)
+        self.composition = composition
+        _appStore = State(initialValue: composition.store)
+    }
 
     var body: some Scene {
         Window("Spurwechsel", id: "main") {
-            ContentView(store: store)
+            AppView(store: appStore)
+                .environment(\.shellSceneBridge, composition.shellSceneBridge)
                 .handlesExternalEvents(preferring: ["*"], allowing: ["*"])
-                .onAppear {
-                    terminationCoordinator.store = store
-                }
         }
         .windowStyle(HiddenTitleBarWindowStyle())
         .defaultSize(width: 1560, height: 940)
         .commands {
             CommandMenu("Spurwechsel") {
-                let commandBarShortcut = store.shortcutBinding(for: .toggleCommandBar)
-                    ?? ResolvedShortcutBinding(command: .toggleCommandBar, key: "k", modifiers: [.command])!
-                let createDefaultAgentShortcut = store.shortcutBinding(for: .createDefaultAgent)
-                    ?? ResolvedShortcutBinding(command: .createDefaultAgent, key: "t", modifiers: [.command])!
-                Button("Command Bar") {
-                    store.dispatchShortcutCommand(.toggleCommandBar)
-                }
-                .keyboardShortcut(
-                    commandBarShortcut.keyEquivalent,
-                    modifiers: commandBarShortcut.eventModifiers
-                )
+                ForEach(SpurwechselCommandMenuSection.allCases, id: \.self) { section in
+                    if section != .app {
+                        Divider()
+                    }
 
-                Button("Create Default Agent") {
-                    store.dispatchShortcutCommand(.createDefaultAgent)
+                    ForEach(section.commands, id: \.self) { command in
+                        if let shortcut = shortcutBinding(for: command) {
+                            Button(command.title) {
+                                appStore.send(.shortcut(command))
+                            }
+                            .keyboardShortcut(
+                                shortcut.keyEquivalent,
+                                modifiers: shortcut.eventModifiers
+                            )
+                        } else {
+                            Button(command.title) {
+                                appStore.send(.shortcut(command))
+                            }
+                        }
+                    }
                 }
-                .keyboardShortcut(
-                    createDefaultAgentShortcut.keyEquivalent,
-                    modifiers: createDefaultAgentShortcut.eventModifiers
-                )
             }
+        }
+    }
+
+    private func shortcutBinding(for command: CommandID) -> ResolvedShortcutBinding? {
+        appStore.state.shell.resolvedShortcuts.first(where: { $0.command == command })
+    }
+}
+
+private enum SpurwechselCommandMenuSection: CaseIterable {
+    case app
+    case project
+    case agent
+    case view
+
+    var commands: [CommandID] {
+        switch self {
+        case .app:
+            return [
+                .toggleCommandBar,
+                .quit
+            ]
+        case .project:
+            return [
+                .addProject,
+                .removeProject,
+                .addWorktree,
+                .deleteWorktree,
+                .selectProject,
+                .selectNextProject,
+                .selectPreviousProject
+            ]
+        case .agent:
+            return [
+                .createAgent,
+                .createDefaultAgent,
+                .deleteAgent,
+                .selectNextAgent,
+                .selectPreviousAgent,
+                .toggleVoiceInput
+            ]
+        case .view:
+            return [
+                .openAgentView,
+                .openTerminalView,
+                .openVSCodeView,
+                .increaseTerminalFontSize,
+                .decreaseTerminalFontSize,
+                .togglePreviewPane,
+                .toggleLeftSidebar,
+                .toggleRightSidebar
+            ]
         }
     }
 }

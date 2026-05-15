@@ -367,6 +367,100 @@ final class spurwechselUITests: XCTestCase {
         XCTAssertEqual(headerName.label, "codex-2")
     }
 
+    func testCreateAgentPickerKeepsFocusAfterAgentSwitch() throws {
+        let fixture = try makeFixture(existingProjectName: "existing-project")
+
+        let app = XCUIApplication()
+        app.launchEnvironment["SPURWECHSEL_CONFIG_PATH"] = fixture.configURL.path
+        app.launchEnvironment["SPURWECHSEL_WORKTREES_ROOT"] = fixture.worktreesRoot.path
+        app.launch()
+
+        let addAgentButton = app.buttons["agents.add.existing-project"]
+        XCTAssertTrue(addAgentButton.waitForExistence(timeout: 2))
+
+        addAgentButton.tap()
+        let pickerField = app.textFields["commandbar.search"]
+        XCTAssertTrue(pickerField.waitForExistence(timeout: 2))
+        app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
+        XCTAssertTrue(app.buttons["agents.session.opencode-1"].waitForExistence(timeout: 2))
+
+        addAgentButton.tap()
+        XCTAssertTrue(pickerField.waitForExistence(timeout: 2))
+        pickerField.tap()
+        pickerField.typeText("codex")
+        app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
+        XCTAssertTrue(app.buttons["agents.session.codex-2"].waitForExistence(timeout: 2))
+
+        app.buttons["agents.session.opencode-1"].tap()
+        app.buttons["agents.session.codex-2"].tap()
+
+        app.typeKey("k", modifierFlags: [.command])
+        let searchField = app.textFields["commandbar.search"]
+        XCTAssertTrue(searchField.waitForExistence(timeout: 2))
+        searchField.tap()
+        searchField.typeText("create agent")
+        app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
+
+        XCTAssertTrue(pickerField.waitForExistence(timeout: 2))
+        app.typeKey("c", modifierFlags: [])
+        app.typeKey("o", modifierFlags: [])
+        app.typeKey("d", modifierFlags: [])
+        app.typeKey("e", modifierFlags: [])
+        app.typeKey("x", modifierFlags: [])
+
+        guard let query = pickerField.value as? String else {
+            return XCTFail("Expected picker search field value")
+        }
+        XCTAssertTrue(query.lowercased().contains("codex"))
+
+        app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
+        XCTAssertTrue(app.buttons["agents.session.codex-3"].waitForExistence(timeout: 2))
+    }
+
+    func testSidebarCreateAgentPickerKeepsFocusAfterAgentSwitch() throws {
+        let fixture = try makeFixture(existingProjectName: "existing-project")
+
+        let app = XCUIApplication()
+        app.launchEnvironment["SPURWECHSEL_CONFIG_PATH"] = fixture.configURL.path
+        app.launchEnvironment["SPURWECHSEL_WORKTREES_ROOT"] = fixture.worktreesRoot.path
+        app.launch()
+
+        let addAgentButton = app.buttons["agents.add.existing-project"]
+        XCTAssertTrue(addAgentButton.waitForExistence(timeout: 2))
+
+        addAgentButton.tap()
+        let pickerField = app.textFields["commandbar.search"]
+        XCTAssertTrue(pickerField.waitForExistence(timeout: 2))
+        app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
+        XCTAssertTrue(app.buttons["agents.session.opencode-1"].waitForExistence(timeout: 2))
+
+        addAgentButton.tap()
+        XCTAssertTrue(pickerField.waitForExistence(timeout: 2))
+        pickerField.tap()
+        pickerField.typeText("codex")
+        app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
+        XCTAssertTrue(app.buttons["agents.session.codex-2"].waitForExistence(timeout: 2))
+
+        app.buttons["agents.session.opencode-1"].tap()
+        app.buttons["agents.session.codex-2"].tap()
+
+        addAgentButton.tap()
+        XCTAssertTrue(pickerField.waitForExistence(timeout: 2))
+        app.typeKey("c", modifierFlags: [])
+        app.typeKey("o", modifierFlags: [])
+        app.typeKey("d", modifierFlags: [])
+        app.typeKey("e", modifierFlags: [])
+        app.typeKey("x", modifierFlags: [])
+
+        guard let query = pickerField.value as? String else {
+            return XCTFail("Expected picker search field value")
+        }
+        XCTAssertTrue(query.lowercased().contains("codex"))
+
+        app.typeKey(XCUIKeyboardKey.return, modifierFlags: [])
+        XCTAssertTrue(app.buttons["agents.session.codex-3"].waitForExistence(timeout: 2))
+    }
+
     func testTerminalMainViewShowsTerminalSurfaceAndSwitchesWorkspace() throws {
         let fixture = try makeFixture(
             existingProjectName: "existing-project",

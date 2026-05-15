@@ -359,7 +359,7 @@ struct ConfigResolver {
     private func resolveTerminal(_ terminal: UserTerminalConfig?) -> ConfigDomainResult<TerminalConfig> {
         ConfigDomainResult(
             value: TerminalConfig(
-                commandKeyMapsToControl: terminal?.commandKeyMapsToControl ?? false
+                swapCommandAndControlWhenFocused: terminal?.swapCommandAndControlWhenFocused ?? false
             )
         )
     }
@@ -587,6 +587,16 @@ struct ConfigFileNormalizer {
         return CommandID.allCases.compactMap { recordsByCommand[$0] }
     }
 
+    private func normalizedTerminal(_ terminal: UserTerminalConfig?) -> UserTerminalConfig? {
+        guard let terminal else {
+            return nil
+        }
+
+        return UserTerminalConfig(
+            swapCommandAndControlWhenFocused: terminal.swapCommandAndControlWhenFocused
+        )
+    }
+
     private func normalizedTheme(_ theme: UserThemeConfig?) -> UserThemeConfig? {
         guard let theme else {
             return nil
@@ -615,12 +625,4 @@ struct ConfigFileNormalizer {
         return UserThemePalette(values: normalized)
     }
 
-    private func normalizedTerminal(_ terminal: UserTerminalConfig?) -> UserTerminalConfig? {
-        guard let terminal else {
-            return nil
-        }
-        return UserTerminalConfig(
-            commandKeyMapsToControl: terminal.commandKeyMapsToControl
-        )
-    }
 }

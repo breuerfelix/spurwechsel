@@ -7,9 +7,15 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		DCDBF76F2FACFCF30062451A /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0322F9B000100AAA001 /* ComposableArchitecture */; };
 		E1A1A0012F9B000100AAA001 /* SwiftGitX in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0022F9B000100AAA001 /* SwiftGitX */; };
 		E1A1A0112F9B000100AAA001 /* GhosttyTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0122F9B000100AAA001 /* GhosttyTerminal */; };
 		E1A1A0212F9B000100AAA001 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0222F9B000100AAA001 /* Yams */; };
+		E1A1A0312F9B000100AAA001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0322F9B000100AAA001 /* ComposableArchitecture */; };
+		E1A1A0412F9B000100AAA001 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0522F9B000100AAA001 /* Dependencies */; };
+		E1A1A0422F9B000100AAA001 /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0622F9B000100AAA001 /* CasePaths */; };
+		E1A1A0432F9B000100AAA001 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0522F9B000100AAA001 /* Dependencies */; };
+		E1A1A0442F9B000100AAA001 /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0622F9B000100AAA001 /* CasePaths */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -58,6 +64,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				E1A1A0312F9B000100AAA001 /* ComposableArchitecture in Frameworks */,
+				E1A1A0412F9B000100AAA001 /* Dependencies in Frameworks */,
+				E1A1A0422F9B000100AAA001 /* CasePaths in Frameworks */,
 				E1A1A0012F9B000100AAA001 /* SwiftGitX in Frameworks */,
 				E1A1A0112F9B000100AAA001 /* GhosttyTerminal in Frameworks */,
 				E1A1A0212F9B000100AAA001 /* Yams in Frameworks */,
@@ -68,6 +77,9 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				DCDBF76F2FACFCF30062451A /* ComposableArchitecture in Frameworks */,
+				E1A1A0432F9B000100AAA001 /* Dependencies in Frameworks */,
+				E1A1A0442F9B000100AAA001 /* CasePaths in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -121,6 +133,9 @@
 			);
 			name = spurwechsel;
 			packageProductDependencies = (
+				E1A1A0322F9B000100AAA001 /* ComposableArchitecture */,
+				E1A1A0522F9B000100AAA001 /* Dependencies */,
+				E1A1A0622F9B000100AAA001 /* CasePaths */,
 				E1A1A0022F9B000100AAA001 /* SwiftGitX */,
 				E1A1A0122F9B000100AAA001 /* GhosttyTerminal */,
 				E1A1A0222F9B000100AAA001 /* Yams */,
@@ -147,6 +162,9 @@
 			);
 			name = spurwechselTests;
 			packageProductDependencies = (
+				E1A1A0322F9B000100AAA001 /* ComposableArchitecture */,
+				E1A1A0522F9B000100AAA001 /* Dependencies */,
+				E1A1A0622F9B000100AAA001 /* CasePaths */,
 			);
 			productName = spurwechselTests;
 			productReference = DCD8D5BA2F9A66CD001AA18D /* spurwechselTests.xctest */;
@@ -208,6 +226,9 @@
 			mainGroup = DCD8D5A42F9A66CB001AA18D;
 			minimizedProjectReferenceProxies = 1;
 			packageReferences = (
+				E1A1A0332F9B000100AAA001 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */,
+				E1A1A0532F9B000100AAA001 /* XCRemoteSwiftPackageReference "swift-dependencies" */,
+				E1A1A0632F9B000100AAA001 /* XCRemoteSwiftPackageReference "swift-case-paths" */,
 				E1A1A0032F9B000100AAA001 /* XCRemoteSwiftPackageReference "SwiftGitX" */,
 				E1A1A0142F9B000100AAA001 /* XCLocalSwiftPackageReference "Vendor/libghostty-spm" */,
 				E1A1A0232F9B000100AAA001 /* XCRemoteSwiftPackageReference "Yams" */,
@@ -603,6 +624,30 @@
 				minimumVersion = 6.2.1;
 			};
 		};
+		E1A1A0332F9B000100AAA001 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-composable-architecture";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.15.0;
+			};
+		};
+		E1A1A0532F9B000100AAA001 /* XCRemoteSwiftPackageReference "swift-dependencies" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-dependencies";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.12.0;
+			};
+		};
+		E1A1A0632F9B000100AAA001 /* XCRemoteSwiftPackageReference "swift-case-paths" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/pointfreeco/swift-case-paths";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 1.7.3;
+			};
+		};
 /* End XCRemoteSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
@@ -620,6 +665,21 @@
 			isa = XCSwiftPackageProductDependency;
 			package = E1A1A0232F9B000100AAA001 /* XCRemoteSwiftPackageReference "Yams" */;
 			productName = Yams;
+		};
+		E1A1A0322F9B000100AAA001 /* ComposableArchitecture */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1A1A0332F9B000100AAA001 /* XCRemoteSwiftPackageReference "swift-composable-architecture" */;
+			productName = ComposableArchitecture;
+		};
+		E1A1A0522F9B000100AAA001 /* Dependencies */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1A1A0532F9B000100AAA001 /* XCRemoteSwiftPackageReference "swift-dependencies" */;
+			productName = Dependencies;
+		};
+		E1A1A0622F9B000100AAA001 /* CasePaths */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = E1A1A0632F9B000100AAA001 /* XCRemoteSwiftPackageReference "swift-case-paths" */;
+			productName = CasePaths;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

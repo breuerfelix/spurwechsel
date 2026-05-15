@@ -6,6 +6,24 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 
 ## [Unreleased]
 
+## [0.7.0] - 2026-05-15
+
+### Added
+- Added optional voice input for agents, so you can dictate prompts directly into an agent session instead of typing everything by hand.
+- Embedded terminals now read supported Ghostty font settings, helping Spurwechsel match existing terminal font family and rendering preferences more closely.
+- Added in-app terminal font size controls, so you can quickly make terminal text larger or smaller without editing config files.
+- Added optional `Command`-to-`Control` key remapping for terminal surfaces, which makes common terminal shortcuts work better for workflows built around `Control` bindings.
+
+### Changed
+- Command palette search now favors project names over branch names, making project switching more predictable when similar names would previously surface branch matches first.
+- Sidebar layout is cleaner in narrow windows, with spacing and collapse behavior that holds up better as available width shrinks.
+- Sidebar scrollbars are hidden more consistently, reducing visual noise while keeping scrolling behavior intact.
+- Spurwechsel now remembers more collapsed sidebar state across restarts, so sections and projects stay closer to how you left them.
+
+### Fixed
+- Fixed command palette focus issues, so keyboard input lands more reliably in search and picker flows without extra clicks.
+- Fixed app quit behavior so managed sessions are shut down more cleanly before Spurwechsel exits.
+
 ## [0.6.0] - 2026-05-07
 
 ### Added
