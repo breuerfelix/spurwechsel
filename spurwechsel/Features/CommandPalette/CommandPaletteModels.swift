@@ -174,6 +174,29 @@ struct CommandBarPickerItem: Identifiable, Equatable {
     var subtitle: String
     var symbolName: String
     var payload: CommandBarPickerPayload
+    var primarySearchText: String
+    var secondarySearchText: String
+    var secondarySearchPenalty: Int
+
+    init(
+        id: String,
+        title: String,
+        subtitle: String,
+        symbolName: String,
+        payload: CommandBarPickerPayload,
+        primarySearchText: String? = nil,
+        secondarySearchText: String? = nil,
+        secondarySearchPenalty: Int = 0
+    ) {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.symbolName = symbolName
+        self.payload = payload
+        self.primarySearchText = primarySearchText ?? title
+        self.secondarySearchText = secondarySearchText ?? subtitle
+        self.secondarySearchPenalty = secondarySearchPenalty
+    }
 }
 
 enum CommandBarTextAction: Equatable {

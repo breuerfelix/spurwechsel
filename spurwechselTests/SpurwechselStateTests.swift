@@ -285,4 +285,91 @@ final class SpurwechselStateTests: XCTestCase {
         XCTAssertTrue(commands.contains(.addWorktree))
         XCTAssertTrue(commands.contains(.deleteWorktree))
     }
+
+    func testFilteredPickerItemsSelectProjectPrioritizesTitleOverBranch() {
+        let selectionA = WorkspaceSelection.project(UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")!)
+        let selectionB = WorkspaceSelection.project(UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")!)
+        let items = [
+            CommandBarPickerItem(
+                id: "workspace-a",
+                title: "screeps-workbench",
+                subtitle: "main",
+                symbolName: "folder",
+                payload: .selectWorkspace(selectionA),
+                secondarySearchPenalty: 50
+            ),
+            CommandBarPickerItem(
+                id: "workspace-b",
+                title: "orbit",
+                subtitle: "sw-feature",
+                symbolName: "folder",
+                payload: .selectWorkspace(selectionB),
+                secondarySearchPenalty: 50
+            )
+        ]
+        var commandBar = CommandBarState()
+        commandBar.mode = .picker(title: "Select Project", items: items, emptyMessage: "")
+        commandBar.query = "sw"
+
+        let filtered = CommandPaletteQuery.filteredPickerItems(commandBar: commandBar)
+
+        XCTAssertEqual(filtered.map(\.id), ["workspace-a", "workspace-b"])
+    }
+
+    func testFilteredPickerItemsKeepsBranchOnlyMatch() {
+        let selection = WorkspaceSelection.project(UUID(uuidString: "cccccccc-cccc-cccc-cccc-cccccccccccc")!)
+        let items = [
+            CommandBarPickerItem(
+                id: "workspace-a",
+                title: "orbit",
+                subtitle: "release/2026",
+                symbolName: "folder",
+                payload: .selectWorkspace(selection),
+                secondarySearchPenalty: 50
+            ),
+            CommandBarPickerItem(
+                id: "workspace-b",
+                title: "tiltrun",
+                subtitle: "main",
+                symbolName: "folder",
+                payload: .selectWorkspace(selection),
+                secondarySearchPenalty: 50
+            )
+        ]
+        var commandBar = CommandBarState()
+        commandBar.mode = .picker(title: "Select Project", items: items, emptyMessage: "")
+        commandBar.query = "release"
+
+        let filtered = CommandPaletteQuery.filteredPickerItems(commandBar: commandBar)
+
+        XCTAssertEqual(filtered.map(\.id), ["workspace-a"])
+    }
+
+    func testFilteredPickerItemsDefaultSecondaryWeightUnchanged() {
+        let selectionA = WorkspaceSelection.project(UUID(uuidString: "dddddddd-dddd-dddd-dddd-dddddddddddd")!)
+        let selectionB = WorkspaceSelection.project(UUID(uuidString: "eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee")!)
+        let items = [
+            CommandBarPickerItem(
+                id: "picker-a",
+                title: "screeps-workbench",
+                subtitle: "main",
+                symbolName: "sparkles.rectangle.stack",
+                payload: .selectWorkspace(selectionA)
+            ),
+            CommandBarPickerItem(
+                id: "picker-b",
+                title: "orbit",
+                subtitle: "sw-feature",
+                symbolName: "sparkles.rectangle.stack",
+                payload: .selectWorkspace(selectionB)
+            )
+        ]
+        var commandBar = CommandBarState()
+        commandBar.mode = .picker(title: "Create Agent", items: items, emptyMessage: "")
+        commandBar.query = "sw"
+
+        let filtered = CommandPaletteQuery.filteredPickerItems(commandBar: commandBar)
+
+        XCTAssertEqual(filtered.map(\.id), ["picker-b", "picker-a"])
+    }
 }
