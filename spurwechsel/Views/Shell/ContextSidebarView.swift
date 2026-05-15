@@ -261,7 +261,7 @@ private struct AgentRowView: View {
         }
         .buttonStyle(.plain)
         .padding(.horizontal, AgentSidebarDensity.groupHorizontalPadding)
-        .accessibilityIdentifier("agents.session.\(session.name.accessibilitySlug)")
+        .accessibilityIdentifier("agents.session.\(session.id.uuidString)")
     }
 
     private var primaryModelName: String {

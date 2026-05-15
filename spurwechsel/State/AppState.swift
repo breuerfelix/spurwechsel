@@ -791,6 +791,10 @@ struct AgentState: Equatable {
             return
         }
         sessions[index].terminalTitle = title
+        let resolvedName = title.trimmingCharacters(in: .whitespacesAndNewlines)
+        if !resolvedName.isEmpty {
+            sessions[index].name = resolvedName
+        }
     }
 
     mutating func updateExitCode(for sessionID: UUID, exitCode: Int32?) {

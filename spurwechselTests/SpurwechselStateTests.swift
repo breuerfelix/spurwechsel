@@ -192,6 +192,56 @@ final class SpurwechselStateTests: XCTestCase {
         XCTAssertEqual(newSession.launchCommand, "codex")
     }
 
+    func testAgentStateUpdateTerminalTitleRenamesSessionFromNonEmptyTitle() {
+        let project = Project(name: "Repo", branch: "main", path: "/tmp/repo")
+        let session = AgentSession(
+            workspaceSelection: .project(project.id),
+            name: "codex-1",
+            status: .running,
+            launcherName: "codex",
+            launchCommand: "codex",
+            workingDirectory: "/tmp/repo",
+            terminalTitle: "codex",
+            lastActivity: "now",
+            exitCode: nil
+        )
+        var state = AgentState(
+            sessions: [session],
+            selectedSessionID: session.id,
+            nextAgentCount: 2
+        )
+
+        state.updateTerminalTitle(for: session.id, title: "  agent: checkout-flow  \n")
+
+        XCTAssertEqual(state.sessions.first?.terminalTitle, "  agent: checkout-flow  \n")
+        XCTAssertEqual(state.sessions.first?.name, "agent: checkout-flow")
+    }
+
+    func testAgentStateUpdateTerminalTitleIgnoresEmptyNameUpdate() {
+        let project = Project(name: "Repo", branch: "main", path: "/tmp/repo")
+        let session = AgentSession(
+            workspaceSelection: .project(project.id),
+            name: "agent: checkout-flow",
+            status: .running,
+            launcherName: "codex",
+            launchCommand: "codex",
+            workingDirectory: "/tmp/repo",
+            terminalTitle: "agent: checkout-flow",
+            lastActivity: "now",
+            exitCode: nil
+        )
+        var state = AgentState(
+            sessions: [session],
+            selectedSessionID: session.id,
+            nextAgentCount: 2
+        )
+
+        state.updateTerminalTitle(for: session.id, title: "   \n")
+
+        XCTAssertEqual(state.sessions.first?.terminalTitle, "   \n")
+        XCTAssertEqual(state.sessions.first?.name, "agent: checkout-flow")
+    }
+
     @MainActor
     func testStoreSelectingSessionSyncsWorkspaceSelection() {
         let project = Project(name: "Repo", branch: "main", path: "/tmp/repo")

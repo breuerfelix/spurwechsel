@@ -18,6 +18,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 - Agent sessions now auto-remove when process exits or fails, matching `Remove Agent` cleanup so dead terminals do not stay visible.
 - Left `Agents` sidebar now hides projects/worktrees without agents, still always shows current selected workspace, and uses a lighter selected-workspace background highlight while keeping selected agent row highlight.
 - Left `Agents` sidebar removes subtle borders from non-selected agent rows and non-selected workspace group cards.
+- Agent session names in sidebar/header now follow latest non-empty OSC terminal title events instead of sticking to generated names like `opencode-1`.
 
 ## [0.5.0] - 2026-05-05
 
