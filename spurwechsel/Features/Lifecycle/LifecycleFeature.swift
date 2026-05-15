@@ -1,7 +1,20 @@
 import ComposableArchitecture
 import Foundation
+import os
 
 struct LifecycleFeature: Reducer {
+    private static let logger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "dev.breuer.spurwechsel",
+        category: "LifecycleFeature"
+    )
+    private static func trace(_ message: String) {
+        #if DEBUG
+        print("[LifecycleFeature] \(message)")
+        #else
+        logger.debug("\(message, privacy: .public)")
+        #endif
+    }
+
     @Dependency(\.appLifecycleBridgeClient) var appLifecycleBridgeClient
     @Dependency(\.terminalRegistryClient) var terminalRegistryClient
     @Dependency(\.vscodeRuntimeClient) var vscodeRuntimeClient
@@ -108,9 +121,11 @@ struct LifecycleFeature: Reducer {
 
             case let .terminationRequested(requestID):
                 guard !state.terminationInProgress else {
+                    Self.trace("terminationRequested ignored requestID=\(requestID.uuidString) alreadyInProgress=true")
                     return .none
                 }
 
+                Self.trace("terminationRequested begin requestID=\(requestID.uuidString)")
                 state.pendingTerminationRequestID = requestID
                 state.lastTerminationSummary = nil
                 state.terminationInProgress = true
@@ -120,25 +135,42 @@ struct LifecycleFeature: Reducer {
                     detailMessage: "Closing terminals, agents, and background sessions."
                 )
 
-                return .run { send in
+                return .run { @MainActor send in
+                    let graceTimeout = AppRuntime.shutdownGraceTimeout
+                    let forceKillTimeout = AppRuntime.shutdownForceKillTimeout
+                    Self.trace("shutdown terminal start requestID=\(requestID.uuidString)")
                     async let terminalSummary = terminalRegistryClient.shutdownAll(
-                        AppRuntime.shutdownGraceTimeout,
-                        AppRuntime.shutdownForceKillTimeout
+                        graceTimeout,
+                        forceKillTimeout
                     )
+                    Self.trace("shutdown vscode start requestID=\(requestID.uuidString)")
                     async let serverSummary = vscodeRuntimeClient.shutdown(
-                        AppRuntime.shutdownGraceTimeout,
-                        AppRuntime.shutdownForceKillTimeout
+                        graceTimeout,
+                        forceKillTimeout
                     )
+
                     let (terminalSummaryValue, serverSummaryValue) = await (terminalSummary, serverSummary)
+                    Self.trace(
+                        "shutdown terminal done requestID=\(requestID.uuidString) sessions=\(terminalSummaryValue.sessionCount) forced=\(terminalSummaryValue.forcedKillCount) timedOut=\(terminalSummaryValue.timedOutCount)"
+                    )
+                    Self.trace(
+                        "shutdown vscode done requestID=\(requestID.uuidString) forced=\(serverSummaryValue.didForceKill) timedOut=\(serverSummaryValue.didTimeout)"
+                    )
 
                     let summary = AppTerminationSummary(
                         forcedKillCount: terminalSummaryValue.forcedKillCount + (serverSummaryValue.didForceKill ? 1 : 0),
                         timedOutCount: terminalSummaryValue.timedOutCount + (serverSummaryValue.didTimeout ? 1 : 0)
                     )
+                    Self.trace(
+                        "terminationRequested completed requestID=\(requestID.uuidString) forced=\(summary.forcedKillCount) timedOut=\(summary.timedOutCount)"
+                    )
                     await send(.terminationFinished(requestID, summary))
                 }
 
             case let .terminationFinished(requestID, summary):
+                Self.trace(
+                    "terminationFinished requestID=\(requestID.uuidString) forced=\(summary.forcedKillCount) timedOut=\(summary.timedOutCount)"
+                )
                 state.pendingTerminationRequestID = nil
                 state.lastTerminationSummary = summary
                 state.terminationInProgress = false
@@ -154,8 +186,9 @@ struct LifecycleFeature: Reducer {
                     state.shutdownPresentation.detailMessage = "All managed sessions closed cleanly."
                 }
 
-                return .run { _ in
-                    await appLifecycleBridgeClient.completeTerminationRequest(requestID, true)
+                return .run { @MainActor _ in
+                    Self.trace("terminationFinished replying requestID=\(requestID.uuidString)")
+                    appLifecycleBridgeClient.completeTerminationRequest(requestID, true)
                 }
 
             case let .enqueueExternalURLs(urls):

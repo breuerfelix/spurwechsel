@@ -134,7 +134,8 @@ struct ContentView_Previews: PreviewProvider {
                     requestApplicationQuit: { }
                 )
                 dependencies.appLifecycleBridgeClient = AppLifecycleBridgeClient(
-                    completeTerminationRequest: { _, _ in }
+                    completeTerminationRequest: { _, _ in },
+                    requestTerminationFromWindowClose: { false }
                 )
                 dependencies.windowClient = .noop
             }

@@ -286,6 +286,9 @@ private enum RuntimeDependencyAssembly {
                     requestID,
                     shouldTerminate: shouldTerminate
                 )
+            },
+            requestTerminationFromWindowClose: {
+                lifecycleBridge.requestTerminationFromWindowClose()
             }
         )
 
