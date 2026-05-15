@@ -45,12 +45,13 @@ struct CommandBarSearchField: NSViewRepresentable {
     @Binding var text: String
     let placeholder: String
     let isFocused: Bool
+    let focusRequestID: Int
     let onSubmit: () -> Void
     let onMoveUp: () -> Void
     let onMoveDown: () -> Void
 
-    func makeNSView(context: Context) -> NSTextField {
-        let field = NSTextField()
+    func makeNSView(context: Context) -> CommandBarSearchTextField {
+        let field = CommandBarSearchTextField()
         field.isBordered = false
         field.drawsBackground = false
         field.focusRingType = .none
@@ -65,7 +66,7 @@ struct CommandBarSearchField: NSViewRepresentable {
         return field
     }
 
-    func updateNSView(_ nsView: NSTextField, context: Context) {
+    func updateNSView(_ nsView: CommandBarSearchTextField, context: Context) {
         if nsView.stringValue != text {
             nsView.stringValue = text
         }
@@ -74,18 +75,7 @@ struct CommandBarSearchField: NSViewRepresentable {
         }
         context.coordinator.parent = self
         nsView.setAccessibilityIdentifier("commandbar.search")
-
-        guard let window = nsView.window else {
-            return
-        }
-
-        if isFocused {
-            if window.firstResponder !== nsView.currentEditor() {
-                window.makeFirstResponder(nsView)
-            }
-        } else if window.firstResponder === nsView.currentEditor() {
-            window.makeFirstResponder(nil)
-        }
+        nsView.applyFocusRequest(id: focusRequestID, isFocused: isFocused)
     }
 
     func makeCoordinator() -> Coordinator {
@@ -122,6 +112,65 @@ struct CommandBarSearchField: NSViewRepresentable {
                 return true
             }
             return false
+        }
+    }
+}
+
+final class CommandBarSearchTextField: NSTextField {
+    private var focusRequestID: Int?
+    private var fulfilledFocusRequestID: Int?
+    private var scheduledFocusRequestID: Int?
+
+    override func viewDidMoveToWindow() {
+        super.viewDidMoveToWindow()
+        guard let focusRequestID else {
+            return
+        }
+        focusIfNeeded(requestID: focusRequestID)
+    }
+
+    func applyFocusRequest(id: Int, isFocused: Bool) {
+        guard isFocused else {
+            focusRequestID = nil
+            fulfilledFocusRequestID = nil
+            scheduledFocusRequestID = nil
+            return
+        }
+
+        if let latestFocusRequestID = focusRequestID, id < latestFocusRequestID {
+            return
+        }
+
+        focusRequestID = id
+        if let window, window.firstResponder !== currentEditor() {
+            fulfilledFocusRequestID = nil
+        }
+        focusIfNeeded(requestID: id)
+    }
+
+    private func focusIfNeeded(requestID: Int) {
+        guard focusRequestID == requestID,
+              fulfilledFocusRequestID != requestID,
+              scheduledFocusRequestID != requestID
+        else {
+            return
+        }
+
+        scheduledFocusRequestID = requestID
+        DispatchQueue.main.async { [weak self] in
+            guard let self else {
+                return
+            }
+            guard self.focusRequestID == requestID else {
+                return
+            }
+            self.scheduledFocusRequestID = nil
+            guard let window = self.window else {
+                return
+            }
+            if window.firstResponder === self.currentEditor() || window.makeFirstResponder(self) {
+                self.fulfilledFocusRequestID = requestID
+            }
         }
     }
 }

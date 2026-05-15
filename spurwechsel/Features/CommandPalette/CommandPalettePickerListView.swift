@@ -7,6 +7,7 @@ struct CommandPalettePickerListView: View {
     let filteredPickerItems: [CommandBarPickerItem]
     let theme: SpurTheme
     let searchFieldShouldFocus: Bool
+    let searchFieldFocusRequestID: Int
     let maxHeight: CGFloat
     let moveHighlightedCommand: (Int) -> Void
     let setHighlightedIndex: (Int) -> Void
@@ -19,6 +20,7 @@ struct CommandPalettePickerListView: View {
                 query: commandBar.query,
                 placeholder: title,
                 isFocused: searchFieldShouldFocus,
+                focusRequestID: searchFieldFocusRequestID,
                 theme: theme,
                 onSubmit: submitCommandBar,
                 onMoveUp: { moveHighlightedCommand(-1) },
