@@ -8,6 +8,7 @@ final class ShellFeatureTests: XCTestCase {
         let store = TestStore(initialState: ShellFeature.State(
             layout: PreviewFixtures.layoutState,
             resolvedShortcuts: SpurwechselConfig().resolvedShortcuts,
+            terminalConfig: TerminalConfig(),
             themeSet: .default,
             configNotification: nil,
             commandBarShouldRestorePreviousFocus: true,
@@ -26,6 +27,7 @@ final class ShellFeatureTests: XCTestCase {
         let initial = ShellFeature.State(
             layout: PreviewFixtures.layoutState,
             resolvedShortcuts: SpurwechselConfig().resolvedShortcuts,
+            terminalConfig: TerminalConfig(),
             themeSet: .default,
             configNotification: nil,
             commandBarShouldRestorePreviousFocus: true,

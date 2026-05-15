@@ -21,9 +21,9 @@ final class UIStateStoreTests: XCTestCase {
         let store = UIStateStore(stateURL: stateURL)
         let input = UIStateFile(
             layout: UILayoutState(
-                preferredPreviewWidth: 512,
                 preferredLeftSidebarWidth: 301,
                 preferredRightSidebarWidth: 277,
+                preferredPreviewWidth: 512,
                 themeMode: "light"
             ),
             workspace: UIWorkspaceState(
