@@ -300,6 +300,9 @@ struct AgentSession: Identifiable, Equatable, Hashable {
     var pluginVersion: String?
     var expectsRichStatus: Bool
     var hasRichStatus: Bool
+    var showsWarpPluginWarning: Bool {
+        kind == .opencode && !expectsRichStatus
+    }
 
     init(
         id: UUID = UUID(),
