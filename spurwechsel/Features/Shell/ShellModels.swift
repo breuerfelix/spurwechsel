@@ -37,6 +37,7 @@ struct AppLayoutState: Equatable {
     var preferredPreviewWidth: CGFloat?
     var preferredLeftSidebarWidth: CGFloat?
     var preferredRightSidebarWidth: CGFloat?
+    var terminalFontSizeOverride: Float?
     var showsLeftSidebar = true
     var showsRightSidebar = true
     var themeMode: ThemeMode = .dark

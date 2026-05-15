@@ -208,6 +208,7 @@ struct TerminalRegistryClient {
         _ terminalTheme: TerminalTheme
     ) -> LocalShellTerminalSessionController
     var workspaceControllerIfLoaded: @MainActor @Sendable (_ workspaceID: String) -> LocalShellTerminalSessionController?
+    var setGlobalSurfaceFontSizeOverride: @MainActor @Sendable (_ value: Float?) -> Void
     var releaseAgentController: @MainActor @Sendable (_ sessionID: UUID) -> Void
     var setAgentAttached: @MainActor @Sendable (_ sessionID: UUID, _ attached: Bool) -> Void
     var setWorkspaceAttached: @MainActor @Sendable (_ workspaceID: String, _ attached: Bool) -> Void
@@ -224,6 +225,9 @@ extension TerminalRegistryClient: DependencyKey {
         },
         workspaceControllerIfLoaded: { _ in
             DependencyClientError.unimplemented("TerminalRegistryClient.workspaceControllerIfLoaded")
+        },
+        setGlobalSurfaceFontSizeOverride: { _ in
+            DependencyClientError.unimplemented("TerminalRegistryClient.setGlobalSurfaceFontSizeOverride")
         },
         releaseAgentController: { _ in
             DependencyClientError.unimplemented("TerminalRegistryClient.releaseAgentController")

@@ -96,6 +96,7 @@ struct ContentView_Previews: PreviewProvider {
                         fatalError("Preview terminal controller creation unsupported.")
                     },
                     workspaceControllerIfLoaded: { _ in nil },
+                    setGlobalSurfaceFontSizeOverride: { _ in },
                     releaseAgentController: { _ in },
                     setAgentAttached: { _, _ in },
                     setWorkspaceAttached: { _, _ in },

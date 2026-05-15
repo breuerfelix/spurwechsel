@@ -74,6 +74,7 @@ private final class TerminalSurfaceDelegateBridge:
 @MainActor
 final class TerminalSessionRegistry {
     private var controllers: [TerminalSessionID: LocalShellTerminalSessionController] = [:]
+    private var globalSurfaceFontSizeOverride: Float?
 
     func acquire(
         id: TerminalSessionID,
@@ -83,6 +84,7 @@ final class TerminalSessionRegistry {
             return existing
         }
         let controller = makeController()
+        controller.setSurfaceFontSizeOverride(globalSurfaceFontSizeOverride)
         controllers[id] = controller
         return controller
     }
@@ -94,6 +96,13 @@ final class TerminalSessionRegistry {
     func setImportedGhosttyTerminalConfig(_ config: ImportedGhosttyTerminalConfig) {
         for controller in controllers.values {
             controller.setImportedGhosttyTerminalConfig(config)
+        }
+    }
+
+    func setGlobalSurfaceFontSizeOverride(_ override: Float?) {
+        globalSurfaceFontSizeOverride = override
+        for controller in controllers.values {
+            controller.setSurfaceFontSizeOverride(override)
         }
     }
 
@@ -186,6 +195,7 @@ final class LocalShellTerminalSessionController: ObservableObject {
     let launchPlan: LaunchPlan
     let terminalTheme: TerminalTheme
     private var importedGhosttyTerminalConfig: ImportedGhosttyTerminalConfig
+    private var surfaceFontSizeOverride: Float?
 
     @Published private(set) var terminalTitle: String
     @Published private(set) var isSurfaceActive = false
@@ -238,11 +248,11 @@ final class LocalShellTerminalSessionController: ObservableObject {
             theme: resolvedTerminalTheme,
             terminalConfiguration: configuration
         )
-        let resolvedFontSize = importedGhosttyTerminalConfig.surfaceFontSize
+        let initialSurfaceFontSize = importedGhosttyTerminalConfig.surfaceFontSize
             ?? Self.defaultTerminalFontSize
         terminalState.configuration = TerminalSurfaceOptions(
             backend: .exec,
-            fontSize: resolvedFontSize,
+            fontSize: initialSurfaceFontSize,
             workingDirectory: launchPlan.workingDirectory,
             context: .window
         )
@@ -321,15 +331,39 @@ final class LocalShellTerminalSessionController: ObservableObject {
             return
         }
         importedGhosttyTerminalConfig = config
-        let configuration = Self.makeTerminalConfiguration(
-            startupCommand: startupCommandForSession,
-            importedGhosttyTerminalConfig: config
-        )
-        _ = terminalState.setTerminalConfiguration(configuration)
+        applyEffectiveTerminalConfigurationFontSize()
+        if !isSurfaceActive {
+            applySurfaceFontSize()
+        }
+    }
+
+    func setSurfaceFontSizeOverride(_ override: Float?) {
+        guard override != surfaceFontSizeOverride else {
+            return
+        }
+        surfaceFontSizeOverride = override
+        applySurfaceFontSize()
+    }
+
+    var effectiveSurfaceFontSize: Float {
+        surfaceFontSizeOverride
+            ?? importedGhosttyTerminalConfig.surfaceFontSize
+            ?? Self.defaultTerminalFontSize
+    }
+
+    private func applySurfaceFontSize() {
         var updatedSurfaceOptions = terminalState.configuration
-        updatedSurfaceOptions.fontSize = config.surfaceFontSize ?? Self.defaultTerminalFontSize
+        updatedSurfaceOptions.fontSize = effectiveSurfaceFontSize
         terminalState.configuration = updatedSurfaceOptions
         terminalView.configuration = updatedSurfaceOptions
+    }
+
+    private func applyEffectiveTerminalConfigurationFontSize() {
+        let configuration = Self.makeTerminalConfiguration(
+            startupCommand: startupCommandForSession,
+            importedGhosttyTerminalConfig: importedGhosttyTerminalConfig
+        ).fontSize(effectiveSurfaceFontSize)
+        _ = terminalState.setTerminalConfiguration(configuration)
     }
 
     func dispose() {

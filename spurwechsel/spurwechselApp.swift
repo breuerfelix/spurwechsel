@@ -123,6 +123,8 @@ private enum SpurwechselCommandMenuSection: CaseIterable {
                 .openAgentView,
                 .openTerminalView,
                 .openVSCodeView,
+                .increaseTerminalFontSize,
+                .decreaseTerminalFontSize,
                 .togglePreviewPane,
                 .toggleLeftSidebar,
                 .toggleRightSidebar

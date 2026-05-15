@@ -576,4 +576,5 @@ private extension AppFeatureIntegrationTests {
         state.shell.layout.selectedMainView = .agent
         return state
     }
+
 }

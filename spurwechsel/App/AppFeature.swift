@@ -139,6 +139,8 @@ struct AppFeature: Reducer {
                         .openTerminalView,
                         .openVSCodeView,
                         .openAgentView,
+                        .increaseTerminalFontSize,
+                        .decreaseTerminalFontSize,
                         .togglePreviewPane,
                         .toggleRightSidebar,
                         .toggleLeftSidebar,

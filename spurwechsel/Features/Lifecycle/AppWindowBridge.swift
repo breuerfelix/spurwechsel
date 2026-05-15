@@ -71,7 +71,11 @@ struct AppWindowBridge: View {
     }
 
     private func normalizedShortcutKey(from event: NSEvent) -> String? {
-        guard let rawKey = event.charactersIgnoringModifiers else {
+        normalizedShortcutKey(from: event.charactersIgnoringModifiers)
+    }
+
+    private func normalizedShortcutKey(from rawKey: String?) -> String? {
+        guard let rawKey else {
             return nil
         }
 
@@ -108,9 +112,36 @@ struct AppWindowBridge: View {
             return nil
         }
         let eventModifiers = shortcutModifiers(from: event)
-        return shortcutBindings.first(where: {
-            $0.key == eventKey && $0.modifiers == eventModifiers
-        })?.command
+        let shiftlessModifiers = eventModifiers.subtracting([.shift])
+
+        var keyCandidates = Set([eventKey])
+        var shiftChangesKey = false
+        if eventModifiers.contains(.shift) {
+            let shiftlessFlags = event.modifierFlags.subtracting([.shift])
+            if let shiftlessCharacters = event.characters(byApplyingModifiers: shiftlessFlags),
+               let shiftlessKey = normalizedShortcutKey(from: shiftlessCharacters) {
+                keyCandidates.insert(shiftlessKey)
+                shiftChangesKey = shiftlessKey != eventKey
+            }
+        }
+
+        for keyCandidate in keyCandidates {
+            if let command = shortcutBindings.first(where: {
+                $0.key == keyCandidate && $0.modifiers == eventModifiers
+            })?.command {
+                return command
+            }
+            if keyCandidate != eventKey || !eventModifiers.contains(.shift) || !shiftChangesKey {
+                continue
+            }
+            if let command = shortcutBindings.first(where: {
+                $0.key == keyCandidate && $0.modifiers == shiftlessModifiers
+            })?.command {
+                return command
+            }
+        }
+
+        return nil
     }
 
     private func isFocusedTerminalResponder(in window: NSWindow?) -> Bool {
