@@ -162,6 +162,7 @@ extension SpurwechselAppStore {
     func selectPreviewView(_ view: PreviewViewKind) { coordinator.selectPreviewView(view) }
     func selectWorkspace(_ selection: WorkspaceSelection) { coordinator.selectWorkspace(selection) }
     func toggleProjectCollapse(_ projectID: UUID) { coordinator.toggleProjectCollapse(projectID) }
+    func toggleSectionCollapse(_ sectionID: String) { coordinator.toggleSectionCollapse(sectionID) }
 
     func openCommandBar(
         projectContextID: UUID? = nil,

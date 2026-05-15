@@ -202,6 +202,7 @@ struct ProjectConfigStore {
 
         - `version`
         - `codeServer`
+        - `sections`
         - `projects`
         - `agents`
         - `shortcuts`
@@ -212,7 +213,8 @@ struct ProjectConfigStore {
 
         - `version`: positive integer.
         - `codeServer.port`: integer from `1` to `65535`.
-        - `projects[]`: `path` (required), `name` (optional).
+        - `sections[]`: `id` (required), `name` (optional). Section id `other` is reserved.
+        - `projects[]`: `path` (required), `name` (optional), `sections` (optional list of section ids).
         - `agents[]`: `name` (required), `command` (required), `default` (optional bool).
         - `shortcuts[]`: `command` (required), `key` (required single character), `modifiers` (optional list).
         - `terminal.commandKeyMapsToControl`: optional bool, default `false`.
@@ -221,6 +223,8 @@ struct ProjectConfigStore {
         ## Important rules
 
         - `projects` store repository roots only. Worktrees are discovered from git.
+        - `projects[].sections` must reference ids from `sections[]`.
+        - If project has no valid sections, sidebar places it in fallback section `other`.
         - If no valid agents remain, Spurwechsel falls back to built-ins (`opencode`, `claude`, `codex`).
         - `shortcuts[].modifiers` supports only: `command`, `shift`, `option`, `control`.
         - Invalid values trigger diagnostics and fallback values.
@@ -245,9 +249,15 @@ struct ProjectConfigStore {
         version: 1
         codeServer:
           port: 8080
+        sections:
+          - id: active
+            name: "Active"
+          - id: experiments
+            name: "Experiments"
         projects:
           - path: "/Users/me/code/project"
             name: "Project"
+            sections: [active, experiments]
         agents:
           - name: opencode
             command: opencode

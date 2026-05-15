@@ -19,7 +19,11 @@ struct ConfigResolver {
     ) -> ConfigLoadResult {
         let versionResult = resolveVersion(fileConfig.version)
         let codeServerResult = resolveCodeServer(fileConfig.codeServer)
-        let projectsResult = resolveProjects(fileConfig.projects)
+        let sectionsResult = resolveSections(fileConfig.sections)
+        let projectsResult = resolveProjects(
+            fileConfig.projects,
+            knownSections: Set(sectionsResult.value.map(\.id))
+        )
         let agentsResult = resolveAgents(fileConfig.agents)
         let shortcutsResult = resolveShortcuts(fileConfig.shortcuts)
         let terminalResult = resolveTerminal(fileConfig.terminal)
@@ -30,6 +34,7 @@ struct ConfigResolver {
             config: SpurwechselConfig(
                 version: versionResult.value,
                 codeServer: codeServerResult.value,
+                sections: sectionsResult.value,
                 projects: projectsResult.value,
                 agents: agentsResult.value,
                 shortcuts: shortcutsResult.value,
@@ -39,6 +44,7 @@ struct ConfigResolver {
             diagnostics: initialDiagnostics
                 + versionResult.diagnostics
                 + codeServerResult.diagnostics
+                + sectionsResult.diagnostics
                 + projectsResult.diagnostics
                 + agentsResult.diagnostics
                 + shortcutsResult.diagnostics
@@ -81,7 +87,49 @@ struct ConfigResolver {
         return ConfigDomainResult(value: CodeServerConfig(port: configuredPort))
     }
 
-    private func resolveProjects(_ projects: [UserProjectRecord]?) -> ConfigDomainResult<[ProjectRecord]> {
+    private func resolveSections(_ sections: [UserProjectSectionRecord]?) -> ConfigDomainResult<[ProjectSectionRecord]> {
+        guard let sections else {
+            return ConfigDomainResult(value: [])
+        }
+
+        var diagnostics: [ConfigDiagnostic] = []
+        var records: [ProjectSectionRecord] = []
+        var seenIDs = Set<String>()
+
+        for (index, section) in sections.enumerated() {
+            guard let rawID = section.id?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !rawID.isEmpty else {
+                diagnostics.append(ConfigDiagnostic("sections[\(index)].id is required."))
+                continue
+            }
+            guard !isFallbackSectionID(rawID) else {
+                diagnostics.append(ConfigDiagnostic("sections[\(index)].id '\(rawID)' is reserved and cannot be configured."))
+                continue
+            }
+            guard !seenIDs.contains(rawID) else {
+                continue
+            }
+            seenIDs.insert(rawID)
+
+            let name = section.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+            records.append(
+                ProjectSectionRecord(
+                    id: rawID,
+                    name: name?.isEmpty == true ? nil : name
+                )
+            )
+        }
+
+        return ConfigDomainResult(
+            value: records,
+            diagnostics: diagnostics
+        )
+    }
+
+    private func resolveProjects(
+        _ projects: [UserProjectRecord]?,
+        knownSections: Set<String>
+    ) -> ConfigDomainResult<[ProjectRecord]> {
         guard let projects else {
             return ConfigDomainResult(value: [])
         }
@@ -98,10 +146,17 @@ struct ConfigResolver {
 
             let normalizedPath = normalizeDirectoryPath(URL(fileURLWithPath: rawPath))
             let name = project.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let resolvedSections = resolveProjectSections(
+                project.sections,
+                knownSections: knownSections,
+                index: index,
+                diagnostics: &diagnostics
+            )
             records.append(
                 ProjectRecord(
                     path: normalizedPath,
-                    name: name?.isEmpty == true ? nil : name
+                    name: name?.isEmpty == true ? nil : name,
+                    sections: resolvedSections
                 )
             )
         }
@@ -110,6 +165,47 @@ struct ConfigResolver {
             value: deduplicatedProjects(records),
             diagnostics: diagnostics
         )
+    }
+
+    private func resolveProjectSections(
+        _ sections: [String]?,
+        knownSections: Set<String>,
+        index: Int,
+        diagnostics: inout [ConfigDiagnostic]
+    ) -> [String] {
+        guard let sections else {
+            return []
+        }
+
+        var dedupedSections: [String] = []
+        var seen = Set<String>()
+
+        for (sectionIndex, rawSection) in sections.enumerated() {
+            let normalizedSection = rawSection.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !normalizedSection.isEmpty else {
+                diagnostics.append(ConfigDiagnostic("projects[\(index)].sections[\(sectionIndex)] must not be empty."))
+                continue
+            }
+            guard !isFallbackSectionID(normalizedSection) else {
+                diagnostics.append(
+                    ConfigDiagnostic(
+                        "projects[\(index)].sections[\(sectionIndex)] '\(normalizedSection)' is reserved. Leave sections empty to use fallback 'other'."
+                    )
+                )
+                continue
+            }
+            guard knownSections.contains(normalizedSection) else {
+                diagnostics.append(ConfigDiagnostic("projects[\(index)].sections[\(sectionIndex)] references unknown section '\(normalizedSection)'."))
+                continue
+            }
+            guard !seen.contains(normalizedSection) else {
+                continue
+            }
+            seen.insert(normalizedSection)
+            dedupedSections.append(normalizedSection)
+        }
+
+        return dedupedSections
     }
 
     private func resolveAgents(_ agents: [UserAgentConfigRecord]?) -> ConfigDomainResult<[AgentConfigRecord]> {
@@ -231,6 +327,10 @@ struct ConfigResolver {
         return dedupedRecords
     }
 
+    private func isFallbackSectionID(_ value: String) -> Bool {
+        value.caseInsensitiveCompare(ProjectSectionRecord.fallbackID) == .orderedSame
+    }
+
     private func deduplicatedAgents(_ agents: [AgentConfigRecord]) -> [AgentConfigRecord] {
         var seenPairs = Set<String>()
         var dedupedAgents: [AgentConfigRecord] = []
@@ -326,12 +426,41 @@ struct ConfigFileNormalizer {
         UserConfigFile(
             version: fileConfig.version,
             codeServer: fileConfig.codeServer,
+            sections: normalizedSections(fileConfig.sections),
             projects: normalizedProjects(fileConfig.projects),
             agents: normalizedAgents(fileConfig.agents),
             shortcuts: normalizedShortcuts(fileConfig.shortcuts),
             terminal: normalizedTerminal(fileConfig.terminal),
             theme: normalizedTheme(fileConfig.theme)
         )
+    }
+
+    private func normalizedSections(_ sections: [UserProjectSectionRecord]?) -> [UserProjectSectionRecord]? {
+        guard let sections else {
+            return nil
+        }
+
+        var normalizedSections: [UserProjectSectionRecord] = []
+        var seenIDs = Set<String>()
+
+        for section in sections {
+            guard let id = section.id?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !id.isEmpty,
+                  !isFallbackSectionID(id),
+                  !seenIDs.contains(id) else {
+                continue
+            }
+            seenIDs.insert(id)
+            let name = section.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+            normalizedSections.append(
+                UserProjectSectionRecord(
+                    id: id,
+                    name: name?.isEmpty == true ? nil : name
+                )
+            )
+        }
+
+        return normalizedSections
     }
 
     private func normalizedProjects(_ projects: [UserProjectRecord]?) -> [UserProjectRecord]? {
@@ -355,15 +484,43 @@ struct ConfigFileNormalizer {
 
             seenPaths.insert(normalizedPath)
             let name = project.name?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let normalizedSections = normalizedProjectSections(project.sections)
             normalizedProjects.append(
                 UserProjectRecord(
                     path: normalizedPath,
-                    name: name?.isEmpty == true ? nil : name
+                    name: name?.isEmpty == true ? nil : name,
+                    sections: normalizedSections.isEmpty ? nil : normalizedSections
                 )
             )
         }
 
         return normalizedProjects
+    }
+
+    private func normalizedProjectSections(_ sections: [String]?) -> [String] {
+        guard let sections else {
+            return []
+        }
+
+        var normalizedSections: [String] = []
+        var seenIDs = Set<String>()
+
+        for section in sections {
+            let normalizedSection = section.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !normalizedSection.isEmpty,
+                  !isFallbackSectionID(normalizedSection),
+                  !seenIDs.contains(normalizedSection) else {
+                continue
+            }
+            seenIDs.insert(normalizedSection)
+            normalizedSections.append(normalizedSection)
+        }
+
+        return normalizedSections
+    }
+
+    private func isFallbackSectionID(_ value: String) -> Bool {
+        value.caseInsensitiveCompare(ProjectSectionRecord.fallbackID) == .orderedSame
     }
 
     private func normalizedAgents(_ agents: [UserAgentConfigRecord]?) -> [UserAgentConfigRecord]? {

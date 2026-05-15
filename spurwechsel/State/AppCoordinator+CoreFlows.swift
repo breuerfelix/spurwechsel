@@ -649,6 +649,10 @@ extension AppCoordinator {
         projects.toggleProjectCollapse(projectID)
     }
 
+    func toggleSectionCollapse(_ sectionID: String) {
+        projects.toggleSectionCollapse(sectionID)
+    }
+
     func openCommandBar(
         projectContextID: UUID? = nil,
         workspaceContext: WorkspaceSelection? = nil
@@ -2474,6 +2478,7 @@ extension AppCoordinator {
                     name: record.displayName,
                     branch: snapshot.currentBranch ?? "",
                     path: snapshot.repositoryRootPath,
+                    sectionIDs: record.sections,
                     worktrees: discoveredWorktrees,
                     isGitRepository: snapshot.currentBranch != nil
                 )
@@ -2485,7 +2490,10 @@ extension AppCoordinator {
             }
         }
 
-        projects.replaceProjects(refreshedProjects)
+        projects.replaceProjects(
+            refreshedProjects,
+            configuredSections: projectConfig.sections
+        )
         let validSelections = Set(projects.orderedNodes.map(\.selection))
         pruneAgentSessions(keepingSelections: validSelections)
         let validWorkspaceIDs = validSelections.map { TerminalSessionID.workspace($0.stableID) }

@@ -18,6 +18,7 @@ enum AppIntent: Equatable {
     case selectSurface(SurfaceTabID)
     case addWorktree(UUID)
     case toggleProjectCollapse(UUID)
+    case toggleSectionCollapse(String)
     case addAgent(WorkspaceSelection)
     case selectAgentSession(UUID)
     case deleteAgent(UUID)
@@ -84,6 +85,8 @@ final class AppCoordinator {
             addWorktree(to: projectID)
         case let .toggleProjectCollapse(projectID):
             toggleProjectCollapse(projectID)
+        case let .toggleSectionCollapse(sectionID):
+            toggleSectionCollapse(sectionID)
         case let .addAgent(selection):
             addAgent(to: selection)
         case let .selectAgentSession(sessionID):

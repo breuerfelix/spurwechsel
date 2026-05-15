@@ -27,6 +27,7 @@ struct Project: Identifiable, Equatable, Hashable {
     var name: String
     var branch: String
     var path: String
+    var sectionIDs: [String]
     var worktrees: [Worktree]
     var isGitRepository: Bool
 
@@ -35,6 +36,7 @@ struct Project: Identifiable, Equatable, Hashable {
         name: String,
         branch: String,
         path: String = "",
+        sectionIDs: [String] = [],
         worktrees: [Worktree] = [],
         isGitRepository: Bool = true
     ) {
@@ -42,6 +44,7 @@ struct Project: Identifiable, Equatable, Hashable {
         self.name = name
         self.branch = branch
         self.path = path
+        self.sectionIDs = sectionIDs
         self.worktrees = worktrees
         self.isGitRepository = isGitRepository
     }
