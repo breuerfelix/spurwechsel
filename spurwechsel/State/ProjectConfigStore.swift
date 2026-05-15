@@ -230,6 +230,34 @@ struct ProjectConfigStore {
         - `terminal.swapCommandAndControlWhenFocused: true` swaps `command` and `control` only for focused terminal input after app shortcuts are checked first.
         - Invalid values trigger diagnostics and fallback values.
 
+        ## Imported Ghostty config for terminal
+
+        Spurwechsel imports curated Ghostty settings for embedded terminals only.
+        Values are loaded from these paths in order (later files override earlier values):
+
+        - `$XDG_CONFIG_HOME/ghostty/config.ghostty` (or `~/.config/ghostty/config.ghostty` when `XDG_CONFIG_HOME` is unset)
+        - `$XDG_CONFIG_HOME/ghostty/config` (or `~/.config/ghostty/config` when `XDG_CONFIG_HOME` is unset)
+        - `~/Library/Application Support/com.mitchellh.ghostty/config.ghostty`
+        - `~/Library/Application Support/com.mitchellh.ghostty/config`
+
+        Supported imported fields:
+
+        - `font-family`
+        - `font-size` (positive number)
+        - `font-thicken` (`true` or `false`)
+        - `font-thicken-strength` (`0` to `255`)
+        - `cursor-style` (`block`, `bar`, `underline`)
+        - `cursor-style-blink` (`true` or `false`)
+        - `cursor-opacity` (`0` to `1`)
+        - `selection-clear-on-copy` (`true` or `false`)
+        - `selection-clear-on-typing` (`true` or `false`)
+        - `selection-word-chars`
+        - `mouse-hide-while-typing` (`true` or `false`)
+        - `mouse-scroll-multiplier` (positive number or `precision:<positive>,discrete:<positive>`)
+        - `copy-on-select` (`true`, `false`, or `clipboard`)
+        - `scrollback-limit` (integer `>= 0`)
+        - `config-file` include directive (relative paths resolved from parent config file)
+
         ## Default shortcut bindings
 
         These defaults apply when `shortcuts` is omitted. If user defines shortcut with same key+modifier signature, explicit config wins and conflicting default is dropped.

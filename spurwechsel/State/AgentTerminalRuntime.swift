@@ -91,6 +91,12 @@ final class TerminalSessionRegistry {
         controllers[id]
     }
 
+    func setImportedGhosttyTerminalConfig(_ config: ImportedGhosttyTerminalConfig) {
+        for controller in controllers.values {
+            controller.setImportedGhosttyTerminalConfig(config)
+        }
+    }
+
     func setAttached(id: TerminalSessionID, attached: Bool) {
         guard let controller = controllers[id] else { return }
         if attached {
@@ -161,6 +167,7 @@ final class LocalShellTerminalSessionController: ObservableObject {
         subsystem: Bundle.main.bundleIdentifier ?? "dev.breuer.spurwechsel",
         category: "TerminalSwitchPerf"
     )
+    private static let defaultTerminalFontSize: Float = 14
     private static func agentStatusTrace(_ message: String) {
         #if DEBUG
         print(message)
@@ -178,6 +185,7 @@ final class LocalShellTerminalSessionController: ObservableObject {
     let startupTitle: String
     let launchPlan: LaunchPlan
     let terminalTheme: TerminalTheme
+    private var importedGhosttyTerminalConfig: ImportedGhosttyTerminalConfig
 
     @Published private(set) var terminalTitle: String
     @Published private(set) var isSurfaceActive = false
@@ -186,6 +194,7 @@ final class LocalShellTerminalSessionController: ObservableObject {
     let terminalView: TerminalView
     let retainedSurface: RetainedHostedSurface<TerminalView>
     private var terminalDelegateBridge: TerminalSurfaceDelegateBridge?
+    private let startupCommandForSession: String?
 
     private let onTitleChange: (String) -> Void
     private let onProcessTerminated: (Int32?) -> Void
@@ -200,6 +209,10 @@ final class LocalShellTerminalSessionController: ObservableObject {
         startupTitle: String,
         launchPlan: LaunchPlan,
         terminalTheme: TerminalTheme? = nil,
+        importedGhosttyTerminalConfig: ImportedGhosttyTerminalConfig = ImportedGhosttyTerminalConfig(
+            terminalConfiguration: .init(),
+            surfaceFontSize: nil
+        ),
         startProcess: Bool = true,
         onTitleChange: @escaping (String) -> Void,
         onProcessTerminated: @escaping (Int32?) -> Void,
@@ -210,21 +223,26 @@ final class LocalShellTerminalSessionController: ObservableObject {
         self.startupTitle = startupTitle
         self.launchPlan = launchPlan
         self.terminalTheme = resolvedTerminalTheme
+        self.importedGhosttyTerminalConfig = importedGhosttyTerminalConfig
+        startupCommandForSession = startProcess ? launchPlan.startupCommand : nil
         self.terminalTitle = startupTitle
         self.onTitleChange = onTitleChange
         self.onProcessTerminated = onProcessTerminated
         self.onDesktopNotification = onDesktopNotification
 
         let configuration = Self.makeTerminalConfiguration(
-            startupCommand: startProcess ? launchPlan.startupCommand : nil
+            startupCommand: startupCommandForSession,
+            importedGhosttyTerminalConfig: importedGhosttyTerminalConfig
         )
         terminalState = TerminalViewState(
             theme: resolvedTerminalTheme,
             terminalConfiguration: configuration
         )
+        let resolvedFontSize = importedGhosttyTerminalConfig.surfaceFontSize
+            ?? Self.defaultTerminalFontSize
         terminalState.configuration = TerminalSurfaceOptions(
             backend: .exec,
-            fontSize: 14,
+            fontSize: resolvedFontSize,
             workingDirectory: launchPlan.workingDirectory,
             context: .window
         )
@@ -298,6 +316,22 @@ final class LocalShellTerminalSessionController: ObservableObject {
         terminalView.sendText(text)
     }
 
+    func setImportedGhosttyTerminalConfig(_ config: ImportedGhosttyTerminalConfig) {
+        guard config != importedGhosttyTerminalConfig else {
+            return
+        }
+        importedGhosttyTerminalConfig = config
+        let configuration = Self.makeTerminalConfiguration(
+            startupCommand: startupCommandForSession,
+            importedGhosttyTerminalConfig: config
+        )
+        _ = terminalState.setTerminalConfiguration(configuration)
+        var updatedSurfaceOptions = terminalState.configuration
+        updatedSurfaceOptions.fontSize = config.surfaceFontSize ?? Self.defaultTerminalFontSize
+        terminalState.configuration = updatedSurfaceOptions
+        terminalView.configuration = updatedSurfaceOptions
+    }
+
     func dispose() {
         guard !isDisposed else {
             return
@@ -349,13 +383,30 @@ final class LocalShellTerminalSessionController: ObservableObject {
         )
     }
 
-    private static func makeTerminalConfiguration(startupCommand: String?) -> TerminalConfiguration {
+    private static func makeTerminalConfiguration(
+        startupCommand: String?,
+        importedGhosttyTerminalConfig: ImportedGhosttyTerminalConfig
+    ) -> TerminalConfiguration {
         TerminalConfiguration { builder in
-            builder.withFontSize(14)
+            builder.withFontSize(defaultTerminalFontSize)
             builder.withCursorStyle(.block)
             builder.withCursorStyleBlink(true)
             builder.withBackgroundOpacity(1)
             builder.withBackgroundBlur(0)
+            for rawLine in importedGhosttyTerminalConfig.terminalConfiguration.rendered
+                .split(separator: "\n")
+                .map(String.init) {
+                guard let separator = rawLine.firstIndex(of: "=") else {
+                    continue
+                }
+                let key = rawLine[..<separator].trimmingCharacters(in: .whitespacesAndNewlines)
+                let valueStart = rawLine.index(after: separator)
+                let value = rawLine[valueStart...].trimmingCharacters(in: .whitespacesAndNewlines)
+                guard !key.isEmpty else {
+                    continue
+                }
+                builder.withCustom(key, value)
+            }
             if let startupCommand {
                 builder.withCustom("command", startupCommand)
             }

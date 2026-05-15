@@ -75,6 +75,9 @@ final class ProjectConfigStoreTests: XCTestCase {
         XCTAssertTrue(agentsContents.contains("## Default shortcut bindings"))
         XCTAssertTrue(agentsContents.contains("`⌘P`: `select-project`"))
         XCTAssertTrue(agentsContents.contains("## Supported shortcut command IDs"))
+        XCTAssertTrue(agentsContents.contains("## Imported Ghostty config for terminal"))
+        XCTAssertTrue(agentsContents.contains("$XDG_CONFIG_HOME/ghostty/config.ghostty"))
+        XCTAssertTrue(agentsContents.contains("`cursor-style` (`block`, `bar`, `underline`)"))
     }
 
     func testLoadResultEnsuringManagedFilesOverwritesStaleAgentsGuide() throws {

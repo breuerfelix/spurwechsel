@@ -18,6 +18,7 @@ final class AppRuntime {
     let uiStateStore: UIStateStore
     let terminalRegistry: TerminalSessionRegistry
     let voiceInputRuntime: VoiceInputRuntime
+    private var importedGhosttyTerminalConfig: ImportedGhosttyTerminalConfig
 
     init(
         configStore: ProjectConfigStore,
@@ -29,6 +30,7 @@ final class AppRuntime {
         self.uiStateStore = uiStateStore
         self.terminalRegistry = terminalRegistry
         self.voiceInputRuntime = voiceInputRuntime
+        importedGhosttyTerminalConfig = GhosttyUserConfigLoader().load()
     }
 
     convenience init() {
@@ -67,6 +69,15 @@ final class AppRuntime {
 
     func agentTerminalController(for sessionID: UUID) -> AgentTerminalSessionController? {
         terminalRegistry.controller(for: .agent(sessionID))
+    }
+
+    func currentImportedGhosttyTerminalConfig() -> ImportedGhosttyTerminalConfig {
+        importedGhosttyTerminalConfig
+    }
+
+    func refreshImportedGhosttyTerminalConfig() {
+        importedGhosttyTerminalConfig = GhosttyUserConfigLoader().load()
+        terminalRegistry.setImportedGhosttyTerminalConfig(importedGhosttyTerminalConfig)
     }
 
     func workspaceTerminalController(
@@ -140,6 +151,7 @@ final class AppRuntime {
             startupTitle: "terminal",
             launchPlan: launchPlan,
             terminalTheme: terminalTheme,
+            importedGhosttyTerminalConfig: importedGhosttyTerminalConfig,
             onTitleChange: { _ in },
             onProcessTerminated: { _ in }
         )
