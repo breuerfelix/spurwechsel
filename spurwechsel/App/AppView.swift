@@ -27,6 +27,7 @@ struct AppView: View {
                 editorStore: editorStore,
                 commandPaletteStore: commandPaletteStore,
                 lifecycleStore: lifecycleStore,
+                activeVoiceInputSessionID: store.state.voiceInput.activeSessionID,
                 invokeCommand: { command, projectContextID, workspaceContext in
                     store.send(.invokeCommand(
                         command,

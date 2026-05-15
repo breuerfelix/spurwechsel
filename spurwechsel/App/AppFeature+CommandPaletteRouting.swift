@@ -296,6 +296,11 @@ extension AppFeature {
                 closeCommandPalette(restorePreviousFocus: false),
                 .send(.shell(.selectMainView(.agent)))
             )
+        case .toggleVoiceInput:
+            return .concatenate(
+                closeCommandPalette(restorePreviousFocus: false),
+                .send(.toggleVoiceInput)
+            )
         case .togglePreviewPane:
             return .concatenate(
                 closeCommandPalette(restorePreviousFocus: false),

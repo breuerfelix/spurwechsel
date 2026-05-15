@@ -10,6 +10,7 @@ struct ShellRootView: View {
     let editorStore: StoreOf<EditorFeature>
     let commandPaletteStore: StoreOf<CommandPaletteFeature>
     let lifecycleStore: StoreOf<LifecycleFeature>
+    let activeVoiceInputSessionID: UUID?
     let invokeCommand: (CommandID, UUID?, WorkspaceSelection?) -> Void
 
     var body: some View {
@@ -21,6 +22,7 @@ struct ShellRootView: View {
             editorStore: editorStore,
             commandPaletteStore: commandPaletteStore,
             lifecycleStore: lifecycleStore,
+            activeVoiceInputSessionID: activeVoiceInputSessionID,
             invokeCommand: invokeCommand
         )
         .preferredColorScheme(shellStore.state.layout.themeMode.colorScheme)

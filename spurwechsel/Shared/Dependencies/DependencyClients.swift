@@ -25,6 +25,35 @@ extension AppControlClient: DependencyKey {
     )
 }
 
+enum VoiceInputEvent: Equatable {
+    case transcriptDelta(String, isFinal: Bool)
+    case stopped
+    case failed(String)
+}
+
+struct VoiceInputClient {
+    var start: @MainActor @Sendable (_ sessionID: UUID) -> AsyncStream<VoiceInputEvent>
+    var stop: @MainActor @Sendable () -> Void
+}
+
+extension VoiceInputClient: DependencyKey {
+    static let liveValue = VoiceInputClient(
+        start: { _ in
+            DependencyClientError.unimplemented("VoiceInputClient.start")
+        },
+        stop: {
+            DependencyClientError.unimplemented("VoiceInputClient.stop")
+        }
+    )
+}
+
+extension DependencyValues {
+    var voiceInputClient: VoiceInputClient {
+        get { self[VoiceInputClient.self] }
+        set { self[VoiceInputClient.self] = newValue }
+    }
+}
+
 struct ConfigClient {
     var load: @MainActor @Sendable () async throws -> ConfigLoadResult
     var save: @MainActor @Sendable (_ fileConfig: UserConfigFile) async throws -> Void

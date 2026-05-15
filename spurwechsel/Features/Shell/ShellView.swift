@@ -10,6 +10,7 @@ struct SpurwechselShellView: View {
     let editorStore: StoreOf<EditorFeature>
     let commandPaletteStore: StoreOf<CommandPaletteFeature>
     let lifecycleStore: StoreOf<LifecycleFeature>
+    let activeVoiceInputSessionID: UUID?
     let invokeCommand: (CommandID, UUID?, WorkspaceSelection?) -> Void
     @State private var leftSidebarDragStartWidth: CGFloat?
     @State private var previewDragStartWidth: CGFloat?
@@ -196,6 +197,8 @@ struct SpurwechselShellView: View {
             vscodeRuntime: { workspaceID in
                 shellSceneBridge.webRuntimeIfPrepared(workspaceID)
             },
+            activeVoiceInputSessionID: activeVoiceInputSessionID,
+            invokeCommand: invokeCommand,
             onSurfaceFocused: handleSurfaceFocused(_:)
         )
     }
@@ -230,6 +233,8 @@ struct SpurwechselShellView: View {
             vscodeRuntime: { workspaceID in
                 shellSceneBridge.webRuntimeIfPrepared(workspaceID)
             },
+            activeVoiceInputSessionID: activeVoiceInputSessionID,
+            invokeCommand: invokeCommand,
             onSurfaceFocused: handleSurfaceFocused(_:)
         )
     }

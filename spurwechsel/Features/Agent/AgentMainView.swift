@@ -24,6 +24,8 @@ struct AgentMainView: View {
     let resolveSession: (UUID?, WorkspaceSelection) -> AgentSession?
     let workspaceNode: (WorkspaceSelection) -> WorkspaceNode?
     let terminalController: (UUID) -> AgentTerminalSessionController?
+    let isVoiceInputActive: Bool
+    let onToggleVoiceInput: () -> Void
 
     private var terminalBackgroundColor: Color { theme.terminal }
 
@@ -130,6 +132,13 @@ struct AgentMainView: View {
                     .fixedSize()
             }
 
+            VoiceInputToggleBadge(
+                theme: theme,
+                isActive: isVoiceInputActive,
+                action: onToggleVoiceInput
+            )
+            .fixedSize()
+
             StatusBadgeView(status: session.status, theme: theme)
                 .fixedSize()
         }
@@ -165,6 +174,58 @@ struct AgentMainView: View {
         .clipShape(RoundedRectangle(cornerRadius: AgentMainDensity.railCornerRadius, style: .continuous))
     }
 
+}
+
+private struct VoiceInputToggleBadge: View {
+    let theme: SpurTheme
+    let isActive: Bool
+    let action: () -> Void
+
+    @State private var isHovering = false
+
+    var body: some View {
+        Button(action: action) {
+            Image(systemName: "mic.fill")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(iconColor)
+                .padding(.horizontal, 9)
+                .padding(.vertical, 6)
+                .background(backgroundColor)
+                .overlay(
+                    Capsule()
+                        .stroke(strokeColor, lineWidth: 1)
+                )
+                .clipShape(Capsule())
+                .contentShape(Capsule())
+        }
+        .buttonStyle(.plain)
+        .help(isActive ? "Disable voice input" : "Enable voice input")
+        .onHover { hovering in
+            isHovering = hovering
+        }
+        .accessibilityIdentifier("agent.header.voice-input.toggle")
+    }
+
+    private var iconColor: Color {
+        if isActive {
+            return .white
+        }
+        return isHovering ? theme.foreground : theme.foregroundMuted
+    }
+
+    private var backgroundColor: Color {
+        if isActive {
+            return Color.red
+        }
+        return isHovering ? theme.panelRaised : theme.panelMuted
+    }
+
+    private var strokeColor: Color {
+        if isActive {
+            return Color.red.opacity(0.78)
+        }
+        return theme.border
+    }
 }
 
 private struct WarpPluginWarningBadge: View {

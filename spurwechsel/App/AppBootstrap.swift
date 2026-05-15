@@ -57,7 +57,8 @@ enum AppBootstrap {
                 vscodeMountedWorkspaceIDs: []
             ),
             commandPalette: CommandPaletteFeature.State(commandBar: CommandBarState()),
-            lifecycle: LifecycleFeature.State()
+            lifecycle: LifecycleFeature.State(),
+            voiceInput: AppFeature.VoiceInputState()
         )
     }
 }

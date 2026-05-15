@@ -17,6 +17,8 @@ struct ShellSurfaceSlotView: View {
     let agentTerminalController: (UUID) -> AgentTerminalSessionController?
     let workspaceTerminalController: (WorkspaceSelection) -> LocalShellTerminalSessionController?
     let vscodeRuntime: (String) -> EmbeddedWebViewRuntime?
+    let activeVoiceInputSessionID: UUID?
+    let invokeCommand: (CommandID, UUID?, WorkspaceSelection?) -> Void
     let onSurfaceFocused: (SurfaceSlot) -> Void
 
     var body: some View {
@@ -98,6 +100,10 @@ struct ShellSurfaceSlotView: View {
                 workspaceNode: projects.node(for:),
                 terminalController: { sessionID in
                     agentTerminalController(sessionID)
+                },
+                isVoiceInputActive: activeVoiceInputSessionID == sessionID,
+                onToggleVoiceInput: {
+                    invokeCommand(.toggleVoiceInput, nil, nil)
                 }
             )
         case .agentWorkspace:
@@ -115,6 +121,10 @@ struct ShellSurfaceSlotView: View {
                 workspaceNode: projects.node(for:),
                 terminalController: { sessionID in
                     agentTerminalController(sessionID)
+                },
+                isVoiceInputActive: false,
+                onToggleVoiceInput: {
+                    invokeCommand(.toggleVoiceInput, nil, nil)
                 }
             )
         case .workspaceTerminal:

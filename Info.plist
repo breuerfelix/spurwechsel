@@ -4,6 +4,10 @@
 <dict>
 	<key>ApplePressAndHoldEnabled</key>
 	<false/>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Spurwechsel uses microphone input to transcribe voice into the active agent prompt.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Spurwechsel uses speech recognition to convert your voice into text for the active agent prompt.</string>
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
