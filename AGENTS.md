@@ -1,5 +1,6 @@
-do not run tests.
-only verify that the app builds.
+run unit tests with `./scripts/test-macos.sh`.
+do not run UI tests.
+verify that the app builds with `./scripts/build-unsigned-macos.sh build`
 do not verify if the app builds when just changing openspec files.
 keep `CHANGELOG.md` current with high-level user-facing changes.
 

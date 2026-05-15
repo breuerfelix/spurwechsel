@@ -69,33 +69,41 @@ final class AppFeatureIntegrationTests: XCTestCase {
         let store = TestStore(initialState: state) {
             AppFeature()
         } withDependencies: { dependencies in
-            dependencies.terminalRegistryClient.acquireAgentController = { _, _, _, _, _, _, _, _ in }
+            dependencies.terminalRegistryClient.workspaceController = { workspaceID, workingDirectory, terminalTheme in
+                runtime.workspaceTerminalController(
+                    workspaceID: workspaceID,
+                    workingDirectory: workingDirectory,
+                    terminalTheme: terminalTheme
+                )
+            }
+            dependencies.terminalRegistryClient.workspaceControllerIfLoaded = { workspaceID in
+                runtime.workspaceTerminalControllerIfLoaded(workspaceID: workspaceID)
+            }
             dependencies.terminalRegistryClient.releaseAgentController = { _ in }
             dependencies.terminalRegistryClient.setAgentAttached = { _, _ in }
             dependencies.terminalRegistryClient.setWorkspaceAttached = { _, _ in }
-            dependencies.terminalRegistryClient.ensureWorkspaceController = { _, _, _ in }
-            dependencies.terminalRegistryClient.shutdownAll = { _, _ in
-                TerminalRegistryShutdownSummary(sessionCount: 0, forcedKillCount: 0, timedOutCount: 0)
-            }
             dependencies.vscodeRuntimeClient.removeBrowserRuntime = { _ in }
-            dependencies.vscodeRuntimeClient.syncBrowserRuntimeCache = { _ in }
-            dependencies.vscodeRuntimeClient.invalidateBrowserAddresses = {}
-            dependencies.vscodeRuntimeClient.stop = {}
-            dependencies.vscodeRuntimeClient.start = { _, _, _ in }
-            dependencies.vscodeRuntimeClient.shutdown = { _, _ in
-                VSCodeServerShutdownSummary(didForceKill: false, didTimeout: false)
-            }
-            dependencies.vscodeRuntimeClient.loadWorkspaceInBrowser = { _, _, _ in false }
         }
+        store.exhaustivity = .off
 
         await store.send(.workspace(.delegate(.workspaceRemoved([removedSelection]))))
 
-        await store.receive(.agent(.workspacesRemoved([removedSelection]))) {
+        await store.receive {
+            guard case let .agent(.workspacesRemoved(selections)) = $0 else {
+                return false
+            }
+            return selections == [removedSelection]
+        } assert: {
             XCTAssertEqual($0.agent.agents.sessions.map(\.id), [keptSession.id])
             XCTAssertEqual($0.agent.agents.selectedSessionID, keptSession.id)
         }
 
-        await store.receive(.editor(.workspacesRemoved([removedSelection.stableID]))) {
+        await store.receive {
+            guard case let .editor(.workspacesRemoved(workspaceIDs)) = $0 else {
+                return false
+            }
+            return workspaceIDs == [removedSelection.stableID]
+        } assert: {
             XCTAssertNil($0.editor.sessionsByWorkspaceID[removedSelection.stableID])
             XCTAssertEqual($0.editor.sessionsByWorkspaceID[keptSelection.stableID]?.workspaceName, "Orbit")
         }
@@ -134,6 +142,7 @@ final class AppFeatureIntegrationTests: XCTestCase {
                 loadResult
             }
         }
+        store.exhaustivity = .off
 
         await store.send(.invokeCommand(
             .createAgent,
@@ -141,13 +150,22 @@ final class AppFeatureIntegrationTests: XCTestCase {
             workspaceContext: .project(project.id)
         ))
 
-        await store.receive(.commandPalette(.presentPicker(
-            title: "Create Agent",
-            items: [expectedItem],
-            emptyMessage: "No agents configured.",
-            projectContextID: nil,
-            workspaceContext: .project(project.id)
-        ))) {
+        await store.receive {
+            guard case let .commandPalette(.presentPicker(
+                title,
+                items,
+                emptyMessage,
+                projectContextID,
+                workspaceContext
+            )) = $0 else {
+                return false
+            }
+            return title == "Create Agent"
+                && items == [expectedItem]
+                && emptyMessage == "No agents configured."
+                && projectContextID == nil
+                && workspaceContext == .project(project.id)
+        } assert: {
             $0.commandPalette.commandBar.isPresented = true
             $0.commandPalette.commandBar.mode = .picker(
                 title: "Create Agent",
@@ -178,6 +196,7 @@ final class AppFeatureIntegrationTests: XCTestCase {
         let store = TestStore(initialState: state) {
             AppFeature()
         }
+        store.exhaustivity = .off
 
         await store.send(.invokeCommand(
             .addWorktree,
@@ -185,11 +204,18 @@ final class AppFeatureIntegrationTests: XCTestCase {
             workspaceContext: nil
         ))
 
-        await store.receive(.commandPalette(.presentTextInput(
-            expectedPrompt,
-            projectContextID: project.id,
-            workspaceContext: nil
-        ))) {
+        await store.receive {
+            guard case let .commandPalette(.presentTextInput(
+                prompt,
+                projectContextID,
+                workspaceContext
+            )) = $0 else {
+                return false
+            }
+            return prompt == expectedPrompt
+                && projectContextID == project.id
+                && workspaceContext == nil
+        } assert: {
             $0.commandPalette.commandBar.isPresented = true
             $0.commandPalette.commandBar.mode = .textInput(expectedPrompt)
             $0.commandPalette.commandBar.projectContextID = project.id

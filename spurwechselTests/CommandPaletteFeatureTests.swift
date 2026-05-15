@@ -8,11 +8,10 @@ final class CommandPaletteFeatureTests: XCTestCase {
         let initialState = CommandPaletteFeature.State(
             commandBar: CommandBarState(
                 isPresented: true,
-                query: "",
-                highlightedIndex: 0,
                 mode: .commandList,
-                notice: nil,
+                query: "",
                 textInput: "",
+                highlightedIndex: 0,
                 projectContextID: nil,
                 workspaceContext: nil
             )
@@ -23,10 +22,13 @@ final class CommandPaletteFeatureTests: XCTestCase {
         }
 
         await store.send(.submit(filteredCommands: [.openAgentView], filteredPickerItems: []))
-        await store.receive(.delegate(.executeCommand(
-            .openAgentView,
-            projectContextID: nil,
-            workspaceContext: nil
-        )))
+        await store.receive { action in
+            guard case let .delegate(.executeCommand(command, projectContextID, workspaceContext)) = action else {
+                return false
+            }
+            return command == .openAgentView
+                && projectContextID == nil
+                && workspaceContext == nil
+        }
     }
 }

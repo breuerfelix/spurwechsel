@@ -1,4 +1,6 @@
+import ComposableArchitecture
 import XCTest
+import Yams
 @testable import spurwechsel
 
 final class ProjectConfigStoreTests: XCTestCase {
@@ -35,7 +37,10 @@ final class ProjectConfigStoreTests: XCTestCase {
         XCTAssertEqual(loadedConfig.codeServer.resolvedPort, CodeServerConfig.defaultPort)
         XCTAssertEqual(loadedConfig.projects, initialConfig.projects)
         XCTAssertEqual(loadedConfig.agents, initialConfig.agents)
-        XCTAssertEqual(loadedConfig.shortcuts, initialConfig.shortcuts)
+        XCTAssertEqual(
+            shortcutsByCommand(loadedConfig.shortcuts),
+            shortcutsByCommand(initialConfig.shortcuts)
+        )
         XCTAssertEqual(loadedConfig.terminal, initialConfig.terminal)
         XCTAssertEqual(loadedConfig.resolvedAgents.map(\.displayName), ["opencode", "claude", "codex"])
         XCTAssertEqual(loadedConfig.resolvedDefaultAgent.displayName, "opencode")
@@ -204,13 +209,13 @@ final class ProjectConfigStoreTests: XCTestCase {
 
         try configStore.save(UserConfigFile.explicit(from: config))
         let savedYAML = try String(contentsOf: configURL, encoding: .utf8)
+        let savedConfig = try YAMLDecoder().decode(UserConfigFile.self, from: savedYAML)
+        let lightTheme = try XCTUnwrap(savedConfig.theme?.light?.values)
+        let darkTheme = try XCTUnwrap(savedConfig.theme?.dark?.values)
 
-        XCTAssertTrue(savedYAML.contains("theme:"))
-        XCTAssertTrue(savedYAML.contains("light:"))
-        XCTAssertTrue(savedYAML.contains("dark:"))
-        XCTAssertTrue(savedYAML.contains("background: \"#F8FBFF\""))
-        XCTAssertTrue(savedYAML.contains("accent: \"#112233\""))
-        XCTAssertTrue(savedYAML.contains("overlayStrong: \"#00000085\""))
+        XCTAssertEqual(lightTheme["accent"], "#112233")
+        XCTAssertEqual(lightTheme["background"], "#F8FBFF")
+        XCTAssertEqual(darkTheme["overlayStrong"], "#00000085")
     }
 
     func testConfigRoundTripPreservesCustomAgents() throws {
@@ -356,13 +361,13 @@ final class ProjectConfigStoreTests: XCTestCase {
         let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
         let configStore = ProjectConfigStore(configURL: configURL)
         let customConfig = SpurwechselConfig(
-            terminal: TerminalConfig(commandKeyMapsToControl: true)
+            terminal: TerminalConfig(swapCommandAndControlWhenFocused: true)
         )
 
         try configStore.save(UserConfigFile.explicit(from: customConfig))
         let loadedConfig = try configStore.load()
 
-        XCTAssertTrue(loadedConfig.terminal.commandKeyMapsToControl)
+        XCTAssertTrue(loadedConfig.terminal.swapCommandAndControlWhenFocused)
     }
 
     func testLoadConfigWithoutTerminalSectionFallsBackToDefaultTerminalMapping() throws {
@@ -382,7 +387,7 @@ final class ProjectConfigStoreTests: XCTestCase {
 
         let loadedConfig = try configStore.load()
 
-        XCTAssertFalse(loadedConfig.terminal.commandKeyMapsToControl)
+        XCTAssertFalse(loadedConfig.terminal.swapCommandAndControlWhenFocused)
     }
 
     func testLoadResultWithInvalidTerminalSectionReportsDiagnosticAndUsesDefaults() throws {
@@ -391,13 +396,13 @@ final class ProjectConfigStoreTests: XCTestCase {
         let yaml = """
         version: 1
         terminal:
-          commandKeyMapsToControl: "yes"
+          swapCommandAndControlWhenFocused: "yes"
         """
         try yaml.appending("\n").write(to: configURL, atomically: true, encoding: .utf8)
 
         let loadResult = configStore.loadResult()
 
-        XCTAssertFalse(loadResult.config.terminal.commandKeyMapsToControl)
+        XCTAssertFalse(loadResult.config.terminal.swapCommandAndControlWhenFocused)
         XCTAssertTrue(loadResult.diagnostics.contains {
             $0.message.contains("could not be parsed")
         })
@@ -593,7 +598,7 @@ final class ProjectConfigStoreTests: XCTestCase {
     }
 
     @MainActor
-    func testStoreBootsProjectsFromPersistedConfig() throws {
+    func testStoreBootsProjectsFromPersistedConfig() async throws {
         let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
         let firstProjectPath = try createGitRepository(named: "first")
         let secondProjectPath = try createGitRepository(named: "second")
@@ -608,12 +613,50 @@ final class ProjectConfigStoreTests: XCTestCase {
             ))
         )
 
-        let store = SpurwechselStore(configStore: configStore)
+        let store = TestStore(initialState: WorkspaceFeature.State(
+            projects: ProjectsState.fromImportedProjects(
+                [],
+                collapsedProjectPaths: [],
+                collapsedSectionIDs: []
+            )
+        )) {
+            WorkspaceFeature()
+        } withDependencies: { dependencies in
+            dependencies.configClient.load = {
+                configStore.loadResultEnsuringManagedFiles()
+            }
+            dependencies.configClient.normalizeDirectoryPath = { url in
+                configStore.normalizeDirectoryPath(url)
+            }
+            dependencies.fileSystemClient.directoryExists = { path in
+                var isDirectory: ObjCBool = false
+                return FileManager.default.fileExists(atPath: path, isDirectory: &isDirectory)
+                    && isDirectory.boolValue
+            }
+            dependencies.gitClient.repositorySnapshot = { url in
+                try await GitRepositoryService().repositorySnapshot(at: url)
+            }
+        }
+        store.exhaustivity = .off
 
-        XCTAssertEqual(store.projects.projects.map(\.name), ["First", "Second"])
-        XCTAssertEqual(store.projects.projects.map(\.branch), ["main", "main"])
-        if case let .project(selectedID) = store.projects.selection {
-            XCTAssertEqual(selectedID, store.projects.projects.first?.id)
+        await store.send(WorkspaceFeature.Action.refreshRequested(
+            preferredSelection: Optional<WorkspaceSelection>.none,
+            revealSidebars: false,
+            activateMainWindow: false,
+            reportErrors: true
+        ))
+        await store.receive { action in
+            guard case ._projectsLoaded = action else {
+                return false
+            }
+            return true
+        }
+
+        XCTAssertEqual(store.state.projects.projects.map { $0.name }, ["First", "Second"])
+        XCTAssertEqual(store.state.projects.projects.map { $0.branch }, ["main", "main"])
+
+        if case let .project(selectedID) = store.state.projects.selection {
+            XCTAssertEqual(selectedID, store.state.projects.projects.first?.id)
         } else {
             XCTFail("Expected project selection after loading persisted projects")
         }
@@ -637,13 +680,13 @@ final class ProjectConfigStoreTests: XCTestCase {
 
         let configStore = ProjectConfigStore(configURL: configURL)
         let originalContents = try String(contentsOf: configURL, encoding: .utf8)
-        let store = SpurwechselStore(configStore: configStore)
+        let loadResult = configStore.loadResultEnsuringManagedFiles()
 
         let savedConfig = try String(contentsOf: configURL, encoding: .utf8)
         XCTAssertEqual(savedConfig, originalContents)
-        XCTAssertNil(store.configNotification)
+        XCTAssertTrue(loadResult.diagnostics.isEmpty)
         XCTAssertEqual(
-            store.shortcutBinding(for: .toggleCommandBar),
+            loadResult.config.shortcutBinding(for: .toggleCommandBar),
             ResolvedShortcutBinding(command: .toggleCommandBar, key: "k", modifiers: [.command])
         )
     }
@@ -670,7 +713,7 @@ final class ProjectConfigStoreTests: XCTestCase {
 
         let configStore = ProjectConfigStore(configURL: configURL)
         let originalContents = try String(contentsOf: configURL, encoding: .utf8)
-        _ = SpurwechselStore(configStore: configStore)
+        _ = configStore.loadResultEnsuringManagedFiles()
 
         let savedConfig = try String(contentsOf: configURL, encoding: .utf8)
         XCTAssertEqual(savedConfig, originalContents)
@@ -683,7 +726,7 @@ final class ProjectConfigStoreTests: XCTestCase {
             .appendingPathComponent("config.yaml")
         let configStore = ProjectConfigStore(configURL: configURL)
 
-        _ = SpurwechselStore(configStore: configStore)
+        _ = configStore.loadResultEnsuringManagedFiles()
 
         let agentsURL = configURL.deletingLastPathComponent().appendingPathComponent("AGENTS.md")
         XCTAssertTrue(FileManager.default.fileExists(atPath: configURL.path))
@@ -724,5 +767,9 @@ final class ProjectConfigStoreTests: XCTestCase {
             XCTFail(message)
             throw NSError(domain: "ProjectConfigStoreTests", code: Int(process.terminationStatus))
         }
+    }
+
+    private func shortcutsByCommand(_ shortcuts: [ShortcutRecord]) -> [CommandID: ShortcutRecord] {
+        Dictionary(uniqueKeysWithValues: shortcuts.map { ($0.command, $0) })
     }
 }

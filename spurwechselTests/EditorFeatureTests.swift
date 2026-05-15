@@ -17,16 +17,28 @@ final class EditorFeatureTests: XCTestCase {
             EditorFeature()
         }
 
-        await store.send(.runtimeEvent(.starting(
+        await store.send(.runtimeEvent(
             workspaceID: workspaceID,
-            workspacePath: workspacePath,
-            serverURL: serverURL
-        ))) {
+            event: .starting(
+                workspaceID: workspaceID,
+                workspacePath: workspacePath,
+                serverURL: serverURL
+            )
+        )) {
             $0.selectedWorkspaceID = workspaceID
-            let session = $0.sessionsByWorkspaceID[workspaceID]
-            XCTAssertEqual(session?.workspacePath, workspacePath)
-            XCTAssertEqual(session?.serverAddress, serverURL.absoluteString)
-            XCTAssertEqual(session?.status, .starting)
+            $0.sessionsByWorkspaceID[workspaceID] = EditorSessionState(
+                workspaceSelectionID: workspaceID,
+                workspaceName: nil,
+                workspacePath: workspacePath,
+                serverAddress: serverURL.absoluteString,
+                workspaceAddress: nil,
+                status: .starting,
+                statusMessage: "Starting code-server for selected workspace at 127.0.0.1:19001…",
+                errorMessage: nil,
+                lastOutputLine: nil,
+                browserPhase: .loading
+            )
+            $0.vscodeMountedWorkspaceIDs = [workspaceID]
         }
     }
 }
