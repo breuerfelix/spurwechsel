@@ -132,6 +132,7 @@ private struct AgentSidebarView: View {
                 .padding(.horizontal, AgentSidebarDensity.contentHorizontalPadding)
                 .padding(.bottom, AgentSidebarDensity.contentBottomPadding)
             }
+            .sidebarAutoHidingScrollIndicators()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
         }
         .padding(.vertical, AgentSidebarDensity.contentHorizontalPadding)
