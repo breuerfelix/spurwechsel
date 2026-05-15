@@ -118,3 +118,62 @@ struct ConfigNotificationBannerView: View {
         )
     }
 }
+
+private struct SidebarAutoHidingScrollIndicatorsModifier: ViewModifier {
+    func body(content: Content) -> some View {
+        content.background(
+            SidebarScrollViewConfigurator()
+                .frame(width: 0, height: 0)
+        )
+    }
+}
+
+private struct SidebarScrollViewConfigurator: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView(frame: .zero)
+        view.isHidden = true
+        configureAfterLayout(for: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSView, context: Context) {
+        configureAfterLayout(for: nsView)
+    }
+
+    private func configureAfterLayout(for view: NSView) {
+        DispatchQueue.main.async {
+            guard let scrollView = findEnclosingScrollView(from: view) else {
+                return
+            }
+            scrollView.scrollerStyle = .overlay
+            scrollView.autohidesScrollers = true
+            scrollView.hasVerticalScroller = true
+            scrollView.hasHorizontalScroller = false
+        }
+    }
+
+    private func findEnclosingScrollView(from view: NSView) -> NSScrollView? {
+        if let scrollView = view.enclosingScrollView {
+            return scrollView
+        }
+
+        var current: NSView? = view.superview
+        while let node = current {
+            if let scrollView = node as? NSScrollView {
+                return scrollView
+            }
+            if let scrollView = node.enclosingScrollView {
+                return scrollView
+            }
+            current = node.superview
+        }
+
+        return nil
+    }
+}
+
+extension View {
+    func sidebarAutoHidingScrollIndicators() -> some View {
+        modifier(SidebarAutoHidingScrollIndicatorsModifier())
+    }
+}
