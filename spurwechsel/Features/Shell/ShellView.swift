@@ -51,6 +51,7 @@ struct SpurwechselShellView: View {
                                 agents: agents,
                                 selectedMainView: shell.layout.selectedMainView,
                                 theme: theme,
+                                showsBranchNames: layoutPolicy.showsLeftSidebarBranchNames,
                                 addAgent: addAgent(to:),
                                 selectSession: selectSession(_:)
                             )
@@ -128,6 +129,7 @@ struct SpurwechselShellView: View {
                                 projects: projects,
                                 theme: theme,
                                 selectedThemeMode: shell.layout.themeMode,
+                                showsBranchNames: layoutPolicy.showsRightSidebarBranchNames,
                                 executeCommand: executeCommand(_:),
                                 toggleTheme: toggleTheme,
                                 addWorktree: addWorktree(to:)

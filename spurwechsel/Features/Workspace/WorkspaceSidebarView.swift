@@ -15,6 +15,7 @@ struct WorkspaceSidebarView: View {
     let projects: ProjectsState
     let theme: SpurTheme
     let selectedThemeMode: ThemeMode
+    let showsBranchNames: Bool
     let executeCommand: (CommandID) -> Void
     let toggleTheme: () -> Void
     let addWorktree: (UUID) -> Void
@@ -32,6 +33,7 @@ struct WorkspaceSidebarView: View {
                                 projects: projects,
                                 project: project,
                                 theme: theme,
+                                showsBranchNames: showsBranchNames,
                                 selectWorkspace: { store.send(.selectWorkspace($0)) },
                                 addWorktree: addWorktree,
                                 toggleProjectCollapse: { store.send(.toggleProjectCollapse($0)) }
@@ -43,6 +45,7 @@ struct WorkspaceSidebarView: View {
                                 projects: projects,
                                 section: section,
                                 theme: theme,
+                                showsBranchNames: showsBranchNames,
                                 selectWorkspace: { store.send(.selectWorkspace($0)) },
                                 addWorktree: addWorktree,
                                 toggleProjectCollapse: { store.send(.toggleProjectCollapse($0)) },
@@ -121,6 +124,7 @@ private struct SectionGroupView: View {
     let projects: ProjectsState
     let section: ProjectsState.SidebarSection
     let theme: SpurTheme
+    let showsBranchNames: Bool
     let selectWorkspace: (WorkspaceSelection) -> Void
     let addWorktree: (UUID) -> Void
     let toggleProjectCollapse: (UUID) -> Void
@@ -146,6 +150,7 @@ private struct SectionGroupView: View {
                             projects: projects,
                             project: project,
                             theme: theme,
+                            showsBranchNames: showsBranchNames,
                             selectWorkspace: selectWorkspace,
                             addWorktree: addWorktree,
                             toggleProjectCollapse: toggleProjectCollapse
@@ -163,14 +168,21 @@ private struct SectionRowView: View {
     let isCollapsed: Bool
     let toggleSectionCollapse: (String) -> Void
 
+    private var sectionLabel: String {
+        isCollapsed ? "\(section.title) (\(section.projectCount))" : section.title
+    }
+
     var body: some View {
         HStack(spacing: SpurSpacing.xs) {
             sectionLine
-            Text("\(section.title) (\(section.projectCount))")
+            Text(sectionLabel)
                 .font(.system(size: 11, weight: .semibold))
                 .foregroundStyle(isCollapsed ? theme.foregroundDim : theme.foregroundMuted)
                 .multilineTextAlignment(.center)
                 .lineLimit(1)
+                .truncationMode(.tail)
+                .layoutPriority(1)
+                .padding(.horizontal, 5)
             sectionLine
         }
             .padding(.horizontal, 10)
@@ -187,6 +199,7 @@ private struct SectionRowView: View {
         Rectangle()
             .fill(isCollapsed ? theme.border : theme.borderStrong)
             .frame(maxWidth: .infinity, minHeight: 1, maxHeight: 1)
+            .layoutPriority(-1)
     }
 }
 
@@ -194,6 +207,7 @@ private struct ProjectGroupView: View {
     let projects: ProjectsState
     let project: Project
     let theme: SpurTheme
+    let showsBranchNames: Bool
     let selectWorkspace: (WorkspaceSelection) -> Void
     let addWorktree: (UUID) -> Void
     let toggleProjectCollapse: (UUID) -> Void
@@ -209,6 +223,7 @@ private struct ProjectGroupView: View {
                 project: project,
                 theme: theme,
                 isCollapsed: isCollapsed,
+                showsBranchNames: showsBranchNames,
                 selectWorkspace: selectWorkspace,
                 addWorktree: addWorktree,
                 toggleProjectCollapse: toggleProjectCollapse
@@ -221,6 +236,7 @@ private struct ProjectGroupView: View {
                         project: project,
                         worktree: worktree,
                         theme: theme,
+                        showsBranchNames: showsBranchNames,
                         selectWorkspace: selectWorkspace
                     )
                         .padding(.leading, 18)
@@ -235,6 +251,7 @@ private struct ProjectRowView: View {
     let project: Project
     let theme: SpurTheme
     let isCollapsed: Bool
+    let showsBranchNames: Bool
     let selectWorkspace: (WorkspaceSelection) -> Void
     let addWorktree: (UUID) -> Void
     let toggleProjectCollapse: (UUID) -> Void
@@ -256,7 +273,7 @@ private struct ProjectRowView: View {
 
                 hoverPlusSlot
 
-                if project.isGitRepository {
+                if showsBranchNames, project.isGitRepository {
                     Text(project.branch)
                         .font(.system(size: 12, weight: .medium, design: .monospaced))
                         .foregroundStyle(isSelected ? theme.foreground : theme.foregroundDim)
@@ -321,6 +338,7 @@ private struct WorktreeRowView: View {
     let project: Project
     let worktree: Worktree
     let theme: SpurTheme
+    let showsBranchNames: Bool
     let selectWorkspace: (WorkspaceSelection) -> Void
 
     private var isSelected: Bool {
@@ -333,9 +351,11 @@ private struct WorktreeRowView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(isSelected ? theme.foreground : theme.foregroundMuted)
             Spacer(minLength: 0)
-            Text(worktree.branch)
-                .font(.system(size: 11, weight: .medium, design: .monospaced))
-                .foregroundStyle(isSelected ? theme.foreground : theme.foregroundDim)
+            if showsBranchNames {
+                Text(worktree.branch)
+                    .font(.system(size: 11, weight: .medium, design: .monospaced))
+                    .foregroundStyle(isSelected ? theme.foreground : theme.foregroundDim)
+            }
         }
         .padding(.horizontal, 10)
         .padding(.vertical, 7)
