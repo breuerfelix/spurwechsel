@@ -5,8 +5,10 @@ struct ShellLayoutPolicy {
     private static let minimumContentWidth: CGFloat = 720
     private static let defaultLeftSidebarWidth: CGFloat = 288
     private static let defaultRightSidebarWidth: CGFloat = 272
-    private static let minimumLeftSidebarWidth: CGFloat = 240
-    private static let minimumRightSidebarWidth: CGFloat = 220
+    private static let minimumLeftSidebarWidth: CGFloat = 150
+    private static let minimumRightSidebarWidth: CGFloat = 180
+    private static let leftBranchNamesVisibleWidth: CGFloat = 240
+    private static let rightBranchNamesVisibleWidth: CGFloat = 220
     private static let minimumMainWidthForCompression: CGFloat = 360
     private static let absoluteMinimumMainWidth: CGFloat = 320
     private static let minimumPreviewWidth: CGFloat = 260
@@ -19,10 +21,12 @@ struct ShellLayoutPolicy {
     let showsPreview: Bool
     let showsRightSidebar: Bool
     let leftSidebarWidth: CGFloat
+    let showsLeftSidebarBranchNames: Bool
     let leftSidebarWidthBounds: ClosedRange<CGFloat>
     let previewWidth: CGFloat
     let previewWidthBounds: ClosedRange<CGFloat>
     let rightSidebarWidth: CGFloat
+    let showsRightSidebarBranchNames: Bool
     let rightSidebarWidthBounds: ClosedRange<CGFloat>
     let mainWidth: CGFloat
 
@@ -157,10 +161,12 @@ struct ShellLayoutPolicy {
         showsPreview = resolvedShowsPreview
         showsRightSidebar = resolvedShowsRightSidebar
         leftSidebarWidth = resolvedLeftWidth
+        showsLeftSidebarBranchNames = resolvedShowsLeftSidebar && resolvedLeftWidth >= Self.leftBranchNamesVisibleWidth
         leftSidebarWidthBounds = resolvedLeftBounds
         previewWidth = resolvedPreviewWidth
         previewWidthBounds = resolvedPreviewBounds
         rightSidebarWidth = resolvedRightWidth
+        showsRightSidebarBranchNames = resolvedShowsRightSidebar && resolvedRightWidth >= Self.rightBranchNamesVisibleWidth
         rightSidebarWidthBounds = resolvedRightBounds
         mainWidth = max(resolvedMainWidth, Self.absoluteMinimumMainWidth)
     }

@@ -23,6 +23,7 @@ struct ContextSidebarView: View {
     let agents: AgentState
     let selectedMainView: MainViewKind
     let theme: SpurTheme
+    let showsBranchNames: Bool
     let addAgent: (WorkspaceSelection) -> Void
     let selectSession: (UUID) -> Void
 
@@ -84,6 +85,7 @@ struct ContextSidebarView: View {
                 groupedAgentNodes: groupedAgentNodes,
                 selectedWorkspaceSelection: projects.selection,
                 selectedSessionID: agents.selectedSessionID,
+                showsBranchNames: showsBranchNames,
                 addAgent: addAgent,
                 selectSession: selectSession
             )
@@ -99,6 +101,7 @@ private struct AgentSidebarView: View {
     let groupedAgentNodes: [(WorkspaceNode, [AgentSession])]
     let selectedWorkspaceSelection: WorkspaceSelection
     let selectedSessionID: UUID?
+    let showsBranchNames: Bool
     let addAgent: (WorkspaceSelection) -> Void
     let selectSession: (UUID) -> Void
 
@@ -119,6 +122,7 @@ private struct AgentSidebarView: View {
                             theme: theme,
                             isSelected: node.selection == selectedWorkspaceSelection,
                             selectedSessionID: selectedSessionID,
+                            showsBranchNames: showsBranchNames,
                             addAgent: addAgent,
                             selectSession: selectSession
                         )
@@ -141,6 +145,7 @@ private struct AgentGroupView: View {
     let theme: SpurTheme
     let isSelected: Bool
     let selectedSessionID: UUID?
+    let showsBranchNames: Bool
     let addAgent: (WorkspaceSelection) -> Void
     let selectSession: (UUID) -> Void
 
@@ -154,7 +159,7 @@ private struct AgentGroupView: View {
                     .foregroundStyle(theme.foreground)
                 Spacer()
                 hoverPlusSlot
-                if !node.branchName.isEmpty {
+                if showsBranchNames, !node.branchName.isEmpty {
                     Text(node.branchName)
                         .font(.system(size: 11, weight: .medium, design: .monospaced))
                         .foregroundStyle(theme.foregroundDim)
