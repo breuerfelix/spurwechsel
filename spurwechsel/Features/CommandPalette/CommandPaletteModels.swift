@@ -17,6 +17,8 @@ enum CommandID: String, CaseIterable, Hashable, Codable {
     case openTerminalView = "open-terminal-view"
     case openVSCodeView = "open-vscode-view"
     case openAgentView = "open-agent-view"
+    case increaseTerminalFontSize = "increase-terminal-font-size"
+    case decreaseTerminalFontSize = "decrease-terminal-font-size"
     case toggleVoiceInput = "toggle-voice-input"
     case togglePreviewPane = "toggle-preview-pane"
     case toggleRightSidebar = "toggle-right-sidebar"
@@ -57,6 +59,10 @@ enum CommandID: String, CaseIterable, Hashable, Codable {
             return "Open VSCode View"
         case .openAgentView:
             return "Open Agent View"
+        case .increaseTerminalFontSize:
+            return "Increase Terminal Font Size"
+        case .decreaseTerminalFontSize:
+            return "Decrease Terminal Font Size"
         case .toggleVoiceInput:
             return "Toggle Voice Input"
         case .togglePreviewPane:
@@ -90,6 +96,10 @@ enum CommandID: String, CaseIterable, Hashable, Codable {
             return "terminal"
         case .openVSCodeView:
             return "chevron.left.forwardslash.chevron.right"
+        case .increaseTerminalFontSize:
+            return "plus.magnifyingglass"
+        case .decreaseTerminalFontSize:
+            return "minus.magnifyingglass"
         case .togglePreviewPane:
             return "rectangle.split.2x1"
         case .toggleRightSidebar:
@@ -135,6 +145,10 @@ enum CommandID: String, CaseIterable, Hashable, Codable {
             return ["vscode", "view", "code", "editor", "ide"]
         case .openAgentView:
             return ["agent", "view", "ai", "assistant"]
+        case .increaseTerminalFontSize:
+            return ["terminal", "font", "size", "zoom", "increase", "larger", "bigger"]
+        case .decreaseTerminalFontSize:
+            return ["terminal", "font", "size", "zoom", "decrease", "smaller"]
         case .toggleVoiceInput:
             return ["voice", "speech", "dictation", "microphone", "input", "toggle"]
         case .togglePreviewPane:

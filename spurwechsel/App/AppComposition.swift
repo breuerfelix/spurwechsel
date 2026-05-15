@@ -162,6 +162,9 @@ private enum RuntimeDependencyAssembly {
             workspaceControllerIfLoaded: { workspaceID in
                 runtime.workspaceTerminalControllerIfLoaded(workspaceID: workspaceID)
             },
+            setGlobalSurfaceFontSizeOverride: { value in
+                runtime.terminalRegistry.setGlobalSurfaceFontSizeOverride(value)
+            },
             releaseAgentController: { sessionID in
                 runtime.terminalRegistry.release(id: .agent(sessionID))
             },

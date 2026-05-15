@@ -344,6 +344,16 @@ final class ProjectConfigStoreTests: XCTestCase {
         XCTAssertEqual(binding?.displayLabel, "⌥⌃T")
     }
 
+    func testResolvedShortcutDisplayLabelHidesImplicitShiftForPlusKey() {
+        let binding = ResolvedShortcutBinding(
+            command: .increaseTerminalFontSize,
+            key: "+",
+            modifiers: [.command, .shift]
+        )
+
+        XCTAssertEqual(binding?.displayLabel, "⌘+")
+    }
+
     func testConfigRoundTripPreservesCustomCodeServerPort() throws {
         let configURL = temporaryDirectoryURL.appendingPathComponent("config.yaml")
         let configStore = ProjectConfigStore(configURL: configURL)

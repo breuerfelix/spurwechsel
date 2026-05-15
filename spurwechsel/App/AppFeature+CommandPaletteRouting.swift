@@ -299,6 +299,18 @@ extension AppFeature {
                 closeCommandPalette(restorePreviousFocus: false),
                 .send(.shell(.selectMainView(.agent)))
             )
+        case .increaseTerminalFontSize:
+            return handleTerminalFontSizeAdjustment(
+                &state,
+                direction: 1,
+                commandTitle: command.title
+            )
+        case .decreaseTerminalFontSize:
+            return handleTerminalFontSizeAdjustment(
+                &state,
+                direction: -1,
+                commandTitle: command.title
+            )
         case .toggleVoiceInput:
             return .concatenate(
                 closeCommandPalette(restorePreviousFocus: false),

@@ -24,7 +24,7 @@ final class ShellFeatureTests: XCTestCase {
     }
 
     func testPersistLayoutActionDoesNotMutateState() async {
-        let initial = ShellFeature.State(
+        let store = TestStore(initialState: ShellFeature.State(
             layout: PreviewFixtures.layoutState,
             resolvedShortcuts: SpurwechselConfig().resolvedShortcuts,
             terminalConfig: TerminalConfig(),
@@ -33,12 +33,10 @@ final class ShellFeatureTests: XCTestCase {
             commandBarShouldRestorePreviousFocus: true,
             surfaceFocusRequest: nil,
             windowChrome: WindowChromeState()
-        )
-        let store = TestStore(initialState: initial) {
+        )) {
             ShellFeature()
         }
 
         await store.send(.persistLayout)
-        XCTAssertEqual(store.state, initial)
     }
 }
