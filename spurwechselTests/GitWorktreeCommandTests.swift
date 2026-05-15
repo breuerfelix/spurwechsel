@@ -574,9 +574,9 @@ final class GitWorktreeCommandTests: XCTestCase {
     }
 
     @MainActor
-    func testImportNonRepositoryFolderShowsErrorNotice() throws {
-        let invalidDirectory = temporaryDirectoryURL.appendingPathComponent("not-a-repo", isDirectory: true)
-        try FileManager.default.createDirectory(at: invalidDirectory, withIntermediateDirectories: true)
+    func testImportNonRepositoryFolderCreatesPlainProject() throws {
+        let plainDirectory = temporaryDirectoryURL.appendingPathComponent("not-a-repo", isDirectory: true)
+        try FileManager.default.createDirectory(at: plainDirectory, withIntermediateDirectories: true)
 
         let configStore = ProjectConfigStore(configURL: temporaryDirectoryURL.appendingPathComponent("config.yaml"))
         let store = SpurwechselStore(
@@ -584,22 +584,23 @@ final class GitWorktreeCommandTests: XCTestCase {
             gitService: MockGitRepositoryService()
         )
 
-        let importedCount = store.importProjects(from: [invalidDirectory])
+        let importedCount = store.importProjects(from: [plainDirectory])
 
-        XCTAssertEqual(importedCount, 0)
-        XCTAssertTrue(store.commandBar.isPresented)
-        XCTAssertTrue(store.commandBar.notice?.isError == true)
-        XCTAssertTrue(store.commandBar.notice?.text.contains("not Git repository") == true)
-        XCTAssertTrue(store.commandBar.notice?.text.contains("not-a-repo") == true)
-        XCTAssertTrue(store.projects.projects.isEmpty)
+        XCTAssertEqual(importedCount, 1)
+        XCTAssertEqual(store.projects.projects.count, 1)
+        XCTAssertEqual(store.projects.projects.first?.path, plainDirectory.path)
+        XCTAssertEqual(store.projects.projects.first?.branch, "")
+        XCTAssertEqual(store.projects.projects.first?.worktrees.count, 0)
+        XCTAssertEqual(store.projects.projects.first?.isGitRepository, false)
+        XCTAssertNil(store.commandBar.notice)
     }
 
     @MainActor
-    func testImportMixedRepositoriesImportsValidAndWarnsInvalid() throws {
+    func testImportMixedRepositoriesCreatesGitAndPlainProjects() throws {
         let validDirectory = temporaryDirectoryURL.appendingPathComponent("repo", isDirectory: true)
-        let invalidDirectory = temporaryDirectoryURL.appendingPathComponent("plain-folder", isDirectory: true)
+        let plainDirectory = temporaryDirectoryURL.appendingPathComponent("plain-folder", isDirectory: true)
         try FileManager.default.createDirectory(at: validDirectory, withIntermediateDirectories: true)
-        try FileManager.default.createDirectory(at: invalidDirectory, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: plainDirectory, withIntermediateDirectories: true)
 
         let validSnapshot = GitRepositorySnapshot(
             repositoryRootPath: validDirectory.path,
@@ -619,15 +620,67 @@ final class GitWorktreeCommandTests: XCTestCase {
             gitService: MockGitRepositoryService(snapshots: [validDirectory.path: validSnapshot])
         )
 
-        let importedCount = store.importProjects(from: [validDirectory, invalidDirectory])
+        let importedCount = store.importProjects(from: [validDirectory, plainDirectory])
 
-        XCTAssertEqual(importedCount, 1)
-        XCTAssertEqual(store.projects.projects.count, 1)
-        XCTAssertEqual(store.projects.projects.first?.path, validDirectory.path)
-        XCTAssertTrue(store.commandBar.isPresented)
+        XCTAssertEqual(importedCount, 2)
+        XCTAssertEqual(store.projects.projects.count, 2)
+
+        let gitProject = store.projects.projects.first(where: { $0.path == validDirectory.path })
+        XCTAssertEqual(gitProject?.isGitRepository, true)
+        XCTAssertEqual(gitProject?.branch, "main")
+
+        let plainProject = store.projects.projects.first(where: { $0.path == plainDirectory.path })
+        XCTAssertEqual(plainProject?.isGitRepository, false)
+        XCTAssertEqual(plainProject?.branch, "")
+        XCTAssertEqual(plainProject?.worktrees.count, 0)
+
+        XCTAssertNil(store.commandBar.notice)
+    }
+
+    @MainActor
+    func testAddWorktreeOnPlainProjectShowsErrorNotice() {
+        let plainProject = Project(name: "Plain", branch: "", path: "/tmp/plain", isGitRepository: false)
+        let state = ProjectsState.fromImportedProjects([plainProject])
+        let store = SpurwechselStore(
+            projects: state,
+            gitService: MockGitRepositoryService()
+        )
+
+        store.openCommandBar()
+        store.executeCommand(.addWorktree, projectContextID: plainProject.id)
+
         XCTAssertTrue(store.commandBar.notice?.isError == true)
-        XCTAssertTrue(store.commandBar.notice?.text.contains("Added 1 project.") == true)
-        XCTAssertTrue(store.commandBar.notice?.text.contains("plain-folder") == true)
+        XCTAssertEqual(store.commandBar.notice?.text, "Selected project is not a Git repository.")
+    }
+
+    @MainActor
+    func testWorktreeCommandsHiddenInCommandPaletteForPlainProject() {
+        let plainProject = Project(name: "Plain", branch: "", path: "/tmp/plain", isGitRepository: false)
+        let state = ProjectsState.fromImportedProjects([plainProject])
+        let store = SpurwechselStore(
+            projects: state,
+            gitService: MockGitRepositoryService()
+        )
+
+        store.openCommandBar()
+
+        XCTAssertFalse(store.filteredCommands.contains(.addWorktree))
+        XCTAssertFalse(store.filteredCommands.contains(.deleteWorktree))
+    }
+
+    @MainActor
+    func testWorktreeCommandsVisibleInCommandPaletteForGitProject() {
+        let gitProject = Project(name: "Repo", branch: "main", path: "/tmp/repo")
+        let state = ProjectsState.fromImportedProjects([gitProject])
+        let store = SpurwechselStore(
+            projects: state,
+            gitService: MockGitRepositoryService()
+        )
+
+        store.openCommandBar()
+
+        XCTAssertTrue(store.filteredCommands.contains(.addWorktree))
+        XCTAssertTrue(store.filteredCommands.contains(.deleteWorktree))
     }
 
     private func createGitRepository(named name: String) throws -> URL {

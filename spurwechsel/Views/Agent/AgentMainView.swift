@@ -122,10 +122,12 @@ struct AgentMainView: View {
                         .font(.system(size: 12, weight: .medium))
                         .foregroundStyle(theme.foregroundMuted)
                         .lineLimit(1)
-                    Text(workspace.branchName)
-                        .font(.system(size: 11, weight: .medium, design: .monospaced))
-                        .foregroundStyle(theme.foregroundDim)
-                        .lineLimit(1)
+                    if !workspace.branchName.isEmpty {
+                        Text(workspace.branchName)
+                            .font(.system(size: 11, weight: .medium, design: .monospaced))
+                            .foregroundStyle(theme.foregroundDim)
+                            .lineLimit(1)
+                    }
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)

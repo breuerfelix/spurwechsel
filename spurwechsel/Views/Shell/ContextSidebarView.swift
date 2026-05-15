@@ -155,9 +155,11 @@ private struct AgentGroupView: View {
                     .foregroundStyle(theme.foreground)
                 Spacer()
                 hoverPlusSlot
-                Text(node.branchName)
-                    .font(.system(size: 11, weight: .medium, design: .monospaced))
-                    .foregroundStyle(theme.foregroundDim)
+                if !node.branchName.isEmpty {
+                    Text(node.branchName)
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .foregroundStyle(theme.foregroundDim)
+                }
             }
             .padding(.horizontal, AgentSidebarDensity.groupHorizontalPadding)
             .frame(minHeight: AgentSidebarDensity.groupHeaderMinHeight)
