@@ -114,7 +114,8 @@ private enum RuntimeDependencyAssembly {
     ) {
         let configClient = ConfigClient(
             load: {
-                runtime.configStore.loadResultEnsuringManagedFiles()
+                runtime.refreshImportedGhosttyTerminalConfig()
+                return runtime.configStore.loadResultEnsuringManagedFiles()
             },
             save: { fileConfig in
                 try runtime.configStore.save(fileConfig)
@@ -204,6 +205,7 @@ private enum RuntimeDependencyAssembly {
                             startupTitle: launchPlan.startupTitle,
                             launchPlan: controllerLaunchPlan,
                             terminalTheme: terminalTheme,
+                            importedGhosttyTerminalConfig: runtime.currentImportedGhosttyTerminalConfig(),
                             onTitleChange: { title in
                                 continuation.yield(.terminalTitleChanged(title))
                             },
