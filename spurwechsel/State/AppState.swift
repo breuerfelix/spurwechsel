@@ -428,6 +428,8 @@ struct AppLayoutState: Equatable {
     var previewConfigurations: [MainViewKind: MainViewPreviewConfiguration] = [:]
     var preferredFocusedSlotByMainView: [MainViewKind: SurfaceSlot] = [:]
     var preferredPreviewWidth: CGFloat?
+    var preferredLeftSidebarWidth: CGFloat?
+    var preferredRightSidebarWidth: CGFloat?
     var showsLeftSidebar = true
     var showsRightSidebar = true
     var themeMode: ThemeMode = .dark
@@ -506,6 +508,20 @@ struct AppLayoutState: Equatable {
         allowedRange: ClosedRange<CGFloat>
     ) {
         preferredPreviewWidth = min(max(width, allowedRange.lowerBound), allowedRange.upperBound)
+    }
+
+    mutating func setPreferredLeftSidebarWidth(
+        _ width: CGFloat,
+        allowedRange: ClosedRange<CGFloat>
+    ) {
+        preferredLeftSidebarWidth = min(max(width, allowedRange.lowerBound), allowedRange.upperBound)
+    }
+
+    mutating func setPreferredRightSidebarWidth(
+        _ width: CGFloat,
+        allowedRange: ClosedRange<CGFloat>
+    ) {
+        preferredRightSidebarWidth = min(max(width, allowedRange.lowerBound), allowedRange.upperBound)
     }
 
     mutating func toggleTheme() {

@@ -13,6 +13,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 - OpenCode Warp rich-status mapping now matches Warp local-agent semantics, including `session_start -> running`, waiting states for approval/input events, and `idle_prompt` as a no-op.
 - OpenCode agent sessions now read OpenCode config (`opencode.json`) to decide status mode: fallback sessions start `running`, Warp-plugin sessions start `idle` and transition with Warp events.
 - Agent top bar now shows yellow warning badge for OpenCode sessions without Warp plugin rich-status setup, with hover-open popup instructions that stay open until click-dismissed, plus a popup action button that inserts agent-ready global install instructions into current agent.
+- Added machine-local UI state file at `~/Library/Application Support/<bundle-id>/ui-state.json` for transient layout preferences that should persist across app restarts without touching `config.yaml`.
 
 ### Fixed
 - Agent sessions now auto-remove when process exits or fails, matching `Remove Agent` cleanup so dead terminals do not stay visible.
@@ -20,6 +21,7 @@ Format based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and th
 - Left `Agents` sidebar removes subtle borders from non-selected agent rows and non-selected workspace group cards.
 - Agent session names in sidebar/header now follow latest non-empty OSC terminal title events instead of sticking to generated names like `opencode-1`.
 - Removed terminal runtime build warnings by resolving default terminal theme inside main-actor initializer.
+- Left and right sidebars are now resizable with minimum widths and remember user-adjusted widths across app restarts.
 
 ## [0.5.0] - 2026-05-05
 

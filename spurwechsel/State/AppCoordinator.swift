@@ -167,6 +167,7 @@ extension AppCoordinator {
         set { store.fileConfig = newValue }
     }
     var configStore: ProjectConfigStore { store.configStore }
+    var uiStateStore: UIStateStore { store.uiStateStore }
     var importURLsProvider: () -> [URL]? { store.importURLsProvider }
     var gitService: GitRepositoryServicing { store.gitService }
     var terminalRegistry: TerminalSessionRegistry { store.terminalRegistry }

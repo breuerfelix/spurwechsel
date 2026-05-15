@@ -37,7 +37,9 @@ struct ContentView: View {
 
 private struct SpurwechselShellView: View {
     @ObservedObject var store: SpurwechselAppStore
+    @State private var leftSidebarDragStartWidth: CGFloat?
     @State private var previewDragStartWidth: CGFloat?
+    @State private var rightSidebarDragStartWidth: CGFloat?
 
     private var theme: SpurTheme { store.theme }
 
@@ -73,7 +75,11 @@ private struct SpurwechselShellView: View {
                                 .frame(width: metrics.leftSidebarWidth)
                                 .transition(.move(edge: .leading).combined(with: .opacity))
 
-                            panelGap(width: metrics.gap)
+                            leftSidebarResizeHandle(
+                                leftSidebarWidth: metrics.leftSidebarWidth,
+                                allowedRange: metrics.leftSidebarWidthBounds,
+                                handleWidth: metrics.gap
+                            )
                         }
 
                         mainSurface
@@ -95,10 +101,18 @@ private struct SpurwechselShellView: View {
                                 .transition(.move(edge: .trailing).combined(with: .opacity))
 
                             if metrics.showsRightSidebar {
-                                panelGap(width: metrics.gap)
+                                rightSidebarResizeHandle(
+                                    rightSidebarWidth: metrics.rightSidebarWidth,
+                                    allowedRange: metrics.rightSidebarWidthBounds,
+                                    handleWidth: metrics.gap
+                                )
                             }
                         } else if metrics.showsRightSidebar {
-                            panelGap(width: metrics.gap)
+                            rightSidebarResizeHandle(
+                                rightSidebarWidth: metrics.rightSidebarWidth,
+                                allowedRange: metrics.rightSidebarWidthBounds,
+                                handleWidth: metrics.gap
+                            )
                         }
 
                         if metrics.showsRightSidebar {
@@ -274,12 +288,6 @@ private struct SpurwechselShellView: View {
         }
     }
 
-    private func panelGap(width: CGFloat) -> some View {
-        Color.clear
-            .frame(width: width, height: 1)
-            .accessibilityHidden(true)
-    }
-
     private func previewResizeHandle(
         previewWidth: CGFloat,
         allowedRange: ClosedRange<CGFloat>,
@@ -308,6 +316,68 @@ private struct SpurwechselShellView: View {
                     }
             )
             .accessibilityIdentifier("preview.resize-handle")
+    }
+
+    private func leftSidebarResizeHandle(
+        leftSidebarWidth: CGFloat,
+        allowedRange: ClosedRange<CGFloat>,
+        handleWidth: CGFloat
+    ) -> some View {
+        Color.clear
+            .frame(width: handleWidth)
+            .frame(maxHeight: .infinity)
+            .padding(.vertical, SpurSpacing.sm)
+            .background(Color.black.opacity(0.001))
+            .contentShape(Rectangle())
+            .modifier(HorizontalResizeCursorModifier())
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                    .onChanged { value in
+                        if leftSidebarDragStartWidth == nil {
+                            leftSidebarDragStartWidth = leftSidebarWidth
+                        }
+                        let startWidth = leftSidebarDragStartWidth ?? leftSidebarWidth
+                        let dragDelta = value.location.x - value.startLocation.x
+                        let proposedWidth = startWidth + dragDelta
+                        store.setPreferredLeftSidebarWidth(proposedWidth, allowedRange: allowedRange)
+                    }
+                    .onEnded { _ in
+                        leftSidebarDragStartWidth = nil
+                        store.persistUIState()
+                    }
+            )
+            .accessibilityIdentifier("sidebar.left.resize-handle")
+    }
+
+    private func rightSidebarResizeHandle(
+        rightSidebarWidth: CGFloat,
+        allowedRange: ClosedRange<CGFloat>,
+        handleWidth: CGFloat
+    ) -> some View {
+        Color.clear
+            .frame(width: handleWidth)
+            .frame(maxHeight: .infinity)
+            .padding(.vertical, SpurSpacing.sm)
+            .background(Color.black.opacity(0.001))
+            .contentShape(Rectangle())
+            .modifier(HorizontalResizeCursorModifier())
+            .gesture(
+                DragGesture(minimumDistance: 1, coordinateSpace: .global)
+                    .onChanged { value in
+                        if rightSidebarDragStartWidth == nil {
+                            rightSidebarDragStartWidth = rightSidebarWidth
+                        }
+                        let startWidth = rightSidebarDragStartWidth ?? rightSidebarWidth
+                        let dragDelta = value.location.x - value.startLocation.x
+                        let proposedWidth = startWidth - dragDelta
+                        store.setPreferredRightSidebarWidth(proposedWidth, allowedRange: allowedRange)
+                    }
+                    .onEnded { _ in
+                        rightSidebarDragStartWidth = nil
+                        store.persistUIState()
+                    }
+            )
+            .accessibilityIdentifier("sidebar.right.resize-handle")
     }
 }
 
@@ -909,8 +979,10 @@ private final class WindowObserverNSView: NSView {
 
 private struct ShellMetrics {
     private static let minimumContentWidth: CGFloat = 720
-    private static let leftSidebarMaxWidth: CGFloat = 288
-    private static let rightSidebarMaxWidth: CGFloat = 272
+    private static let defaultLeftSidebarWidth: CGFloat = 288
+    private static let defaultRightSidebarWidth: CGFloat = 272
+    private static let minimumLeftSidebarWidth: CGFloat = 240
+    private static let minimumRightSidebarWidth: CGFloat = 220
     private static let minimumMainWidthForCompression: CGFloat = 360
     private static let absoluteMinimumMainWidth: CGFloat = 320
     private static let minimumPreviewWidth: CGFloat = 260
@@ -923,9 +995,11 @@ private struct ShellMetrics {
     let showsPreview: Bool
     let showsRightSidebar: Bool
     let leftSidebarWidth: CGFloat
+    let leftSidebarWidthBounds: ClosedRange<CGFloat>
     let previewWidth: CGFloat
     let previewWidthBounds: ClosedRange<CGFloat>
     let rightSidebarWidth: CGFloat
+    let rightSidebarWidthBounds: ClosedRange<CGFloat>
     let mainWidth: CGFloat
 
     init(size: CGSize, layout: AppLayoutState) {
@@ -941,8 +1015,12 @@ private struct ShellMetrics {
         var resolvedShowsPreview = preferredShowsPreview
         var resolvedShowsRightSidebar = preferredShowsRightSidebar
 
+        var resolvedLeftBounds = Self.minimumLeftSidebarWidth...Self.minimumLeftSidebarWidth
+        var resolvedLeftWidth: CGFloat = 0
         var resolvedPreviewBounds = Self.minimumPreviewWidth...Self.minimumPreviewWidth
         var resolvedPreviewWidth: CGFloat = 0
+        var resolvedRightBounds = Self.minimumRightSidebarWidth...Self.minimumRightSidebarWidth
+        var resolvedRightWidth: CGFloat = 0
         var resolvedMainWidth: CGFloat = Self.minimumContentWidth
 
         while true {
@@ -957,11 +1035,55 @@ private struct ShellMetrics {
                 gap: gap,
                 panelCount: panelCount
             )
-            let leftWidth = resolvedShowsLeftSidebar ? Self.leftSidebarMaxWidth : 0
-            let rightWidth = resolvedShowsRightSidebar ? Self.rightSidebarMaxWidth : 0
+            let minimumRightWidth = resolvedShowsRightSidebar ? Self.minimumRightSidebarWidth : 0
+            let minimumPreviewWidth = resolvedShowsPreview ? Self.minimumPreviewWidth : 0
+
+            if resolvedShowsLeftSidebar {
+                let maxLeftWidth = contentWidth - minimumRightWidth - minimumPreviewWidth - Self.minimumMainWidthForCompression
+                if maxLeftWidth >= Self.minimumLeftSidebarWidth {
+                    resolvedLeftBounds = Self.minimumLeftSidebarWidth...maxLeftWidth
+                    let requestedLeftSidebarWidth = layout.preferredLeftSidebarWidth ?? Self.defaultLeftSidebarWidth
+                    resolvedLeftWidth = Self.clamp(
+                        requestedLeftSidebarWidth,
+                        min: resolvedLeftBounds.lowerBound,
+                        max: resolvedLeftBounds.upperBound
+                    )
+                } else {
+                    if resolvedShowsRightSidebar {
+                        resolvedShowsRightSidebar = false
+                    } else if resolvedShowsPreview {
+                        resolvedShowsPreview = false
+                    } else {
+                        resolvedShowsLeftSidebar = false
+                    }
+                    continue
+                }
+            } else {
+                resolvedLeftBounds = Self.minimumLeftSidebarWidth...Self.minimumLeftSidebarWidth
+                resolvedLeftWidth = 0
+            }
+
+            if resolvedShowsRightSidebar {
+                let maxRightWidth = contentWidth - resolvedLeftWidth - minimumPreviewWidth - Self.minimumMainWidthForCompression
+                if maxRightWidth >= Self.minimumRightSidebarWidth {
+                    resolvedRightBounds = Self.minimumRightSidebarWidth...maxRightWidth
+                    let requestedRightSidebarWidth = layout.preferredRightSidebarWidth ?? Self.defaultRightSidebarWidth
+                    resolvedRightWidth = Self.clamp(
+                        requestedRightSidebarWidth,
+                        min: resolvedRightBounds.lowerBound,
+                        max: resolvedRightBounds.upperBound
+                    )
+                } else {
+                    resolvedShowsRightSidebar = false
+                    continue
+                }
+            } else {
+                resolvedRightBounds = Self.minimumRightSidebarWidth...Self.minimumRightSidebarWidth
+                resolvedRightWidth = 0
+            }
 
             if resolvedShowsPreview {
-                let maxPreviewWidth = contentWidth - leftWidth - rightWidth - Self.minimumMainWidthForCompression
+                let maxPreviewWidth = contentWidth - resolvedLeftWidth - resolvedRightWidth - Self.minimumMainWidthForCompression
                 if maxPreviewWidth >= Self.minimumPreviewWidth {
                     let defaultPreviewWidth = Self.clamp(
                         contentWidth * 0.30,
@@ -981,8 +1103,6 @@ private struct ShellMetrics {
                     } else {
                         resolvedShowsPreview = false
                     }
-                    resolvedPreviewBounds = Self.minimumPreviewWidth...Self.minimumPreviewWidth
-                    resolvedPreviewWidth = 0
                     continue
                 }
             } else {
@@ -990,7 +1110,7 @@ private struct ShellMetrics {
                 resolvedPreviewWidth = 0
             }
 
-            resolvedMainWidth = contentWidth - leftWidth - rightWidth - resolvedPreviewWidth
+            resolvedMainWidth = contentWidth - resolvedLeftWidth - resolvedRightWidth - resolvedPreviewWidth
             if resolvedMainWidth >= Self.minimumMainWidthForCompression {
                 break
             }
@@ -1012,10 +1132,12 @@ private struct ShellMetrics {
         showsLeftSidebar = resolvedShowsLeftSidebar
         showsPreview = resolvedShowsPreview
         showsRightSidebar = resolvedShowsRightSidebar
-        leftSidebarWidth = resolvedShowsLeftSidebar ? Self.leftSidebarMaxWidth : 0
+        leftSidebarWidth = resolvedLeftWidth
+        leftSidebarWidthBounds = resolvedLeftBounds
         previewWidth = resolvedPreviewWidth
         previewWidthBounds = resolvedPreviewBounds
-        rightSidebarWidth = resolvedShowsRightSidebar ? Self.rightSidebarMaxWidth : 0
+        rightSidebarWidth = resolvedRightWidth
+        rightSidebarWidthBounds = resolvedRightBounds
         mainWidth = max(resolvedMainWidth, Self.absoluteMinimumMainWidth)
     }
 
