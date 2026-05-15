@@ -15,16 +15,23 @@ struct ProjectsState: Equatable {
     var projects: [Project]
     var configuredSections: [ProjectSectionRecord]
     var collapsedProjectIDs: Set<UUID>
+    var collapsedProjectPaths: Set<String>
     var collapsedSectionIDs: Set<String>
     var selection: WorkspaceSelection
     var nextProjectCount: Int
     var nextWorktreeCount: Int
 
     mutating func toggleProjectCollapse(_ projectID: UUID) {
+        guard let project = projects.first(where: { $0.id == projectID }) else {
+            return
+        }
+
         if collapsedProjectIDs.contains(projectID) {
             collapsedProjectIDs.remove(projectID)
+            collapsedProjectPaths.remove(project.path)
         } else {
             collapsedProjectIDs.insert(projectID)
+            collapsedProjectPaths.insert(project.path)
         }
     }
 
@@ -44,11 +51,25 @@ struct ProjectsState: Equatable {
         _ projects: [Project],
         configuredSections: [ProjectSectionRecord]
     ) {
+        let previousProjects = self.projects
         let previousSelection = selection
+
+        let collapsedPathsFromCurrentIDs = Set(
+            collapsedProjectIDs.compactMap { projectID in
+                previousProjects.first(where: { $0.id == projectID })?.path
+            }
+        )
+        let desiredCollapsedProjectPaths = collapsedProjectPaths.union(collapsedPathsFromCurrentIDs)
+        let availableProjectPaths = Set(projects.map(\.path))
 
         self.projects = projects
         self.configuredSections = configuredSections
-        collapsedProjectIDs = collapsedProjectIDs.intersection(Set(projects.map(\.id)))
+        collapsedProjectPaths = desiredCollapsedProjectPaths.intersection(availableProjectPaths)
+        collapsedProjectIDs = Set(
+            projects.compactMap { project in
+                collapsedProjectPaths.contains(project.path) ? project.id : nil
+            }
+        )
         collapsedSectionIDs = collapsedSectionIDs.intersection(Set(sidebarSections.map(\.id)))
         nextProjectCount = max(nextProjectCount, projects.count + 1)
 
@@ -228,12 +249,24 @@ struct ProjectsState: Equatable {
         orderedNodes.first { $0.selection == selection }
     }
 
-    static func fromImportedProjects(_ projects: [Project]) -> ProjectsState {
-        ProjectsState(
+    static func fromImportedProjects(
+        _ projects: [Project],
+        collapsedProjectPaths: Set<String> = [],
+        collapsedSectionIDs: Set<String> = []
+    ) -> ProjectsState {
+        let resolvedCollapsedProjectPaths = collapsedProjectPaths
+        let resolvedCollapsedProjectIDs = Set(
+            projects.compactMap { project in
+                resolvedCollapsedProjectPaths.contains(project.path) ? project.id : nil
+            }
+        )
+
+        return ProjectsState(
             projects: projects,
             configuredSections: [],
-            collapsedProjectIDs: [],
-            collapsedSectionIDs: [],
+            collapsedProjectIDs: resolvedCollapsedProjectIDs,
+            collapsedProjectPaths: resolvedCollapsedProjectPaths,
+            collapsedSectionIDs: collapsedSectionIDs,
             selection: projects.first.map { .project($0.id) } ?? .project(UUID()),
             nextProjectCount: projects.count + 1,
             nextWorktreeCount: 1

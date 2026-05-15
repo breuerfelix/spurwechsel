@@ -263,8 +263,11 @@ private enum RuntimeDependencyAssembly {
         )
 
         dependencies.layoutPersistenceClient = LayoutPersistenceClient(
-            persistShellLayout: { layout in
-                runtime.persistLayout(layout)
+            persistUIState: { layout, projects in
+                runtime.persistUIState(
+                    layout: layout,
+                    projects: projects
+                )
             }
         )
 

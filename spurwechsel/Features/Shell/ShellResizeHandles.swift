@@ -77,6 +77,7 @@ struct PreviewResizeHandle: View {
     let handleWidth: CGFloat
     @Binding var dragStartWidth: CGFloat?
     let onWidthChanged: (CGFloat, ClosedRange<CGFloat>) -> Void
+    let onDragEnded: () -> Void
 
     var body: some View {
         ShellHorizontalResizeHandle(
@@ -87,7 +88,7 @@ struct PreviewResizeHandle: View {
             direction: .shrinkWithDrag,
             dragStartWidth: $dragStartWidth,
             onWidthChanged: onWidthChanged,
-            onDragEnded: {}
+            onDragEnded: onDragEnded
         )
     }
 }

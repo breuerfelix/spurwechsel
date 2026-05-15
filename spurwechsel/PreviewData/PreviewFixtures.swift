@@ -49,6 +49,7 @@ enum PreviewFixtures {
         projects: [tiltrunProject, orbitProject, draftframeProject, sidetrackProject],
         configuredSections: [],
         collapsedProjectIDs: [],
+        collapsedProjectPaths: [],
         collapsedSectionIDs: [],
         selection: .worktree(draftframeExporting.id),
         nextProjectCount: 5,

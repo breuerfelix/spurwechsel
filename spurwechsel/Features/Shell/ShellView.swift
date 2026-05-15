@@ -87,6 +87,9 @@ struct SpurwechselShellView: View {
                                 dragStartWidth: $previewDragStartWidth,
                                 onWidthChanged: { proposedWidth, allowedRange in
                                     shellStore.send(.setPreferredPreviewWidth(proposedWidth, allowedRange))
+                                },
+                                onDragEnded: {
+                                    shellStore.send(.persistLayout)
                                 }
                             )
 

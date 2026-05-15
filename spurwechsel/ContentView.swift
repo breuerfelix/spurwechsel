@@ -79,7 +79,7 @@ struct ContentView_Previews: PreviewProvider {
                 dependencies.importPanelClient = ImportPanelClient.liveValue
                 dependencies.fileSystemClient = FileSystemClient.liveValue
                 dependencies.layoutPersistenceClient = LayoutPersistenceClient(
-                    persistShellLayout: { _ in }
+                    persistUIState: { _, _ in }
                 )
                 dependencies.openCodeConfigClient = OpenCodeConfigClient.liveValue
                 dependencies.terminalRegistryClient = TerminalRegistryClient(
