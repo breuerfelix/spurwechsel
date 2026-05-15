@@ -17,22 +17,26 @@ final class AppRuntime {
     let configStore: ProjectConfigStore
     let uiStateStore: UIStateStore
     let terminalRegistry: TerminalSessionRegistry
+    let voiceInputRuntime: VoiceInputRuntime
 
     init(
         configStore: ProjectConfigStore,
         uiStateStore: UIStateStore,
-        terminalRegistry: TerminalSessionRegistry
+        terminalRegistry: TerminalSessionRegistry,
+        voiceInputRuntime: VoiceInputRuntime
     ) {
         self.configStore = configStore
         self.uiStateStore = uiStateStore
         self.terminalRegistry = terminalRegistry
+        self.voiceInputRuntime = voiceInputRuntime
     }
 
     convenience init() {
         self.init(
             configStore: ProjectConfigStore(),
             uiStateStore: UIStateStore(),
-            terminalRegistry: TerminalSessionRegistry()
+            terminalRegistry: TerminalSessionRegistry(),
+            voiceInputRuntime: VoiceInputRuntime()
         )
     }
 

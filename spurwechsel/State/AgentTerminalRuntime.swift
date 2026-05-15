@@ -294,6 +294,7 @@ final class LocalShellTerminalSessionController: ObservableObject {
         guard !text.isEmpty else {
             return
         }
+        Self.agentStatusTrace("[voice-input-bridge] session=\(sessionID.uuidString) chars=\(text.count)")
         terminalView.sendText(text)
     }
 

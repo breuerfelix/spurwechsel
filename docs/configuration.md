@@ -81,7 +81,7 @@ Each shortcut stores:
 - `key`
 - `modifiers`
 
-`command` accepts any command ID from command registry (`toggle-command-bar`, `create-agent`, `open-vscode-view`, etc).
+`command` accepts any command ID from command registry (`toggle-command-bar`, `create-agent`, `toggle-voice-input`, `open-vscode-view`, etc).
 
 Resolver enforces one binding per command and removes signature collisions.
 

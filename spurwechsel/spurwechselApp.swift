@@ -115,7 +115,8 @@ private enum SpurwechselCommandMenuSection: CaseIterable {
                 .createDefaultAgent,
                 .deleteAgent,
                 .selectNextAgent,
-                .selectPreviousAgent
+                .selectPreviousAgent,
+                .toggleVoiceInput
             ]
         case .view:
             return [

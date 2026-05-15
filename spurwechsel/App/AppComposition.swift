@@ -138,6 +138,15 @@ private enum RuntimeDependencyAssembly {
         )
         dependencies.openCodeConfigClient = openCodeConfigClient
 
+        dependencies.voiceInputClient = VoiceInputClient(
+            start: { sessionID in
+                runtime.voiceInputRuntime.start(sessionID: sessionID)
+            },
+            stop: {
+                runtime.voiceInputRuntime.stop()
+            }
+        )
+
         dependencies.terminalRegistryClient = TerminalRegistryClient(
             agentController: { sessionID in
                 runtime.agentTerminalController(for: sessionID)

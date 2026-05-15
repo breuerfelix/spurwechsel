@@ -17,6 +17,7 @@ enum CommandID: String, CaseIterable, Hashable, Codable {
     case openTerminalView = "open-terminal-view"
     case openVSCodeView = "open-vscode-view"
     case openAgentView = "open-agent-view"
+    case toggleVoiceInput = "toggle-voice-input"
     case togglePreviewPane = "toggle-preview-pane"
     case toggleRightSidebar = "toggle-right-sidebar"
     case toggleLeftSidebar = "toggle-left-sidebar"
@@ -56,6 +57,8 @@ enum CommandID: String, CaseIterable, Hashable, Codable {
             return "Open VSCode View"
         case .openAgentView:
             return "Open Agent View"
+        case .toggleVoiceInput:
+            return "Toggle Voice Input"
         case .togglePreviewPane:
             return "Toggle Preview Pane"
         case .toggleRightSidebar:
@@ -81,6 +84,8 @@ enum CommandID: String, CaseIterable, Hashable, Codable {
             return "folder"
         case .createAgent, .createDefaultAgent, .deleteAgent, .selectPreviousAgent, .selectNextAgent, .openAgentView:
             return "sparkles.rectangle.stack"
+        case .toggleVoiceInput:
+            return "mic"
         case .openTerminalView:
             return "terminal"
         case .openVSCodeView:
@@ -130,6 +135,8 @@ enum CommandID: String, CaseIterable, Hashable, Codable {
             return ["vscode", "view", "code", "editor", "ide"]
         case .openAgentView:
             return ["agent", "view", "ai", "assistant"]
+        case .toggleVoiceInput:
+            return ["voice", "speech", "dictation", "microphone", "input", "toggle"]
         case .togglePreviewPane:
             return ["preview", "pane", "toggle", "panel"]
         case .toggleRightSidebar:

@@ -1,5 +1,6 @@
 import ComposableArchitecture
 import Foundation
+import os
 
 struct AppFeature: Reducer {
     @Dependency(\.configClient) var configClient
@@ -7,6 +8,7 @@ struct AppFeature: Reducer {
     @Dependency(\.appControlClient) var appControlClient
     @Dependency(\.layoutPersistenceClient) var layoutPersistenceClient
     @Dependency(\.terminalRegistryClient) var terminalRegistryClient
+    @Dependency(\.voiceInputClient) var voiceInputClient
 
     @ObservableState
     struct State: Equatable {
@@ -17,6 +19,12 @@ struct AppFeature: Reducer {
         var editor: EditorFeature.State
         var commandPalette: CommandPaletteFeature.State
         var lifecycle: LifecycleFeature.State
+        var voiceInput: VoiceInputState
+    }
+
+    struct VoiceInputState: Equatable {
+        var activeSessionID: UUID?
+        var hasInsertedText = false
     }
 
     @CasePathable
@@ -26,6 +34,9 @@ struct AppFeature: Reducer {
         case invokeCommand(CommandID, projectContextID: UUID?, workspaceContext: WorkspaceSelection?)
         case requestApplicationQuit
         case shortcut(CommandID)
+        case toggleVoiceInput
+        case voiceInputEvent(VoiceInputEvent)
+        case stopVoiceInput
         case shell(ShellFeature.Action)
         case workbench(WorkbenchFeature.Action)
         case workspace(WorkspaceFeature.Action)
@@ -124,6 +135,7 @@ struct AppFeature: Reducer {
                         .deleteAgent,
                         .selectPreviousAgent,
                         .selectNextAgent,
+                        .toggleVoiceInput,
                         .openTerminalView,
                         .openVSCodeView,
                         .openAgentView,
@@ -170,11 +182,17 @@ struct AppFeature: Reducer {
                 )
                 syncWorkbenchState(&state)
                 syncEditorState(&state)
-                return surfaceStateChangedEffects(&state)
+                return .merge(
+                    surfaceStateChangedEffects(&state),
+                    enforceVoiceInputContext(state)
+                )
             case .shell(.selectPreviewView):
                 syncWorkbenchState(&state, preferredSlot: .preview)
                 syncEditorState(&state)
-                return surfaceStateChangedEffects(&state)
+                return .merge(
+                    surfaceStateChangedEffects(&state),
+                    enforceVoiceInputContext(state)
+                )
             case .shell(.persistLayout):
                 let layout = state.shell.layout
                 let projects = state.workspace.projects
@@ -187,7 +205,10 @@ struct AppFeature: Reducer {
                     preferredSlot: state.shell.layout.previewEnabled ? .preview : .main
                 )
                 syncEditorState(&state)
-                return surfaceStateChangedEffects(&state)
+                return .merge(
+                    surfaceStateChangedEffects(&state),
+                    enforceVoiceInputContext(state)
+                )
             case .shell(.toggleTheme):
                 return .send(.shell(.persistLayout))
             case let .agent(.selectSession(sessionID)):
@@ -209,7 +230,10 @@ struct AppFeature: Reducer {
                     syncWorkbenchState(&state)
                     syncEditorState(&state)
                 }
-                return surfaceStateChangedEffects(&state)
+                return .merge(
+                    surfaceStateChangedEffects(&state),
+                    enforceVoiceInputContext(state)
+                )
             case let .agent(.updateTerminalTitle(sessionID, _)):
                 state.workbench.refreshAgentSessionTabIfNeeded(
                     sessionID: sessionID,
@@ -236,7 +260,10 @@ struct AppFeature: Reducer {
                 syncEditorState(&state)
                 return .concatenate(
                     closeCommandPalette(restorePreviousFocus: false),
-                    surfaceStateChangedEffects(&state)
+                    .merge(
+                        surfaceStateChangedEffects(&state),
+                        enforceVoiceInputContext(state)
+                    )
                 )
             case let .agent(.delegate(.sessionsRemoved(sessionIDs))):
                 guard !sessionIDs.isEmpty else {
@@ -271,7 +298,10 @@ struct AppFeature: Reducer {
                 )
                 syncWorkbenchState(&state)
                 syncEditorState(&state)
-                return surfaceStateChangedEffects(&state)
+                return .merge(
+                    surfaceStateChangedEffects(&state),
+                    enforceVoiceInputContext(state)
+                )
             case let .workspace(.delegate(.inventoryChanged(preferredSelection, revealSidebars, activateMainWindow))):
                 applyWorkspaceInventoryChange(&state, preferredSelection: preferredSelection)
                 if revealSidebars {
@@ -315,7 +345,8 @@ struct AppFeature: Reducer {
             case let .workspace(.delegate(.workspaceRemoved(selections))):
                 return .concatenate(
                     .send(.agent(.workspacesRemoved(selections))),
-                    .send(.editor(.workspacesRemoved(selections.map(\.stableID))))
+                    .send(.editor(.workspacesRemoved(selections.map(\.stableID)))),
+                    enforceVoiceInputContext(state)
                 )
             case .workspace(.delegate(.projectImportCompleted(importedPaths: _, preferredSelection: _))):
                 return .none
@@ -364,12 +395,151 @@ struct AppFeature: Reducer {
 
                 syncWorkbenchState(&state)
                 syncEditorState(&state)
-                return surfaceStateChangedEffects(&state)
+                return .merge(
+                    surfaceStateChangedEffects(&state),
+                    enforceVoiceInputContext(state)
+                )
+            case .toggleVoiceInput:
+                if state.voiceInput.activeSessionID != nil {
+                    Self.voiceInputTrace("toggle requested while active session=\(state.voiceInput.activeSessionID?.uuidString ?? "nil"), stopping")
+                    return .send(.stopVoiceInput)
+                }
+
+                guard let targetSessionID = visibleAgentSessionID(in: state) else {
+                    Self.voiceInputTrace("toggle requested without visible agent session")
+                    return .send(.shell(.setConfigNotification(ConfigNotificationState(
+                        title: "Voice input unavailable",
+                        message: "Open an active agent session first.",
+                        detailMessage: "Voice input can run only when main view is Agent with running session."
+                    ))))
+                }
+
+                state.voiceInput.activeSessionID = targetSessionID
+                state.voiceInput.hasInsertedText = false
+                Self.voiceInputTrace("voice input started session=\(targetSessionID.uuidString)")
+                return .run { [targetSessionID] send in
+                    let stream = await voiceInputClient.start(targetSessionID)
+                    for await event in stream {
+                        await send(.voiceInputEvent(event))
+                    }
+                }
+                .cancellable(id: voiceInputCancelID, cancelInFlight: true)
+            case let .voiceInputEvent(event):
+                Self.voiceInputTrace("voice event \(Self.voiceEventDebugSummary(event))")
+                switch event {
+                case let .transcriptDelta(rawText, _):
+                    guard let sessionID = state.voiceInput.activeSessionID else {
+                        Self.voiceInputTrace("drop transcript event: no active session")
+                        return .none
+                    }
+                    let text = normalizedVoiceInputChunk(
+                        rawText,
+                        shouldInsertLeadingSpace: state.voiceInput.hasInsertedText
+                    )
+                    guard !text.isEmpty else {
+                        return .none
+                    }
+                    state.voiceInput.hasInsertedText = true
+                    return .run { _ in
+                        let controller = await terminalRegistryClient.agentController(sessionID)
+                        Self.voiceInputTrace(
+                            "send transcript session=\(sessionID.uuidString) hasController=\(controller != nil) chars=\(text.count)"
+                        )
+                        await controller?.sendText(text)
+                    }
+                case .stopped:
+                    Self.voiceInputTrace("voice input stopped session=\(state.voiceInput.activeSessionID?.uuidString ?? "nil")")
+                    state.voiceInput.activeSessionID = nil
+                    state.voiceInput.hasInsertedText = false
+                    return .cancel(id: voiceInputCancelID)
+                case let .failed(message):
+                    Self.voiceInputTrace("voice input failed message=\(message)")
+                    state.voiceInput.activeSessionID = nil
+                    state.voiceInput.hasInsertedText = false
+                    return .concatenate(
+                        .cancel(id: voiceInputCancelID),
+                        .send(.shell(.setConfigNotification(ConfigNotificationState(
+                            title: "Voice input failed",
+                            message: message,
+                            detailMessage: "Check microphone and speech recognition permissions in System Settings, then retry."
+                        ))))
+                    )
+                }
+            case .stopVoiceInput:
+                let activeSessionID = state.voiceInput.activeSessionID
+                Self.voiceInputTrace("stop requested session=\(activeSessionID?.uuidString ?? "nil")")
+                return .run { _ in
+                    await voiceInputClient.stop()
+                }
             case .lifecycle(.setApplicationActive), .lifecycle(.setWindowKey):
                 return syncTerminalActivationEffect(state)
             case .shell, .workbench, .workspace, .agent, .editor, .commandPalette, .lifecycle:
                 return .none
             }
+        }
+    }
+}
+
+private extension AppFeature {
+    nonisolated static let voiceInputLogger = Logger(
+        subsystem: Bundle.main.bundleIdentifier ?? "dev.breuer.spurwechsel",
+        category: "VoiceInputFlow"
+    )
+    nonisolated static func voiceInputTrace(_ message: String) {
+        #if DEBUG
+        print("[voice-input-flow] \(message)")
+        #else
+        voiceInputLogger.debug("\(message, privacy: .public)")
+        #endif
+    }
+
+    var voiceInputCancelID: String { "voice-input-stream" }
+
+    func visibleAgentSessionID(in state: State) -> UUID? {
+        guard state.shell.layout.selectedMainView == .agent,
+              let surfaceID = state.workbench.surfaceMountState.mainSurfaceID
+        else {
+            return nil
+        }
+        return resolvedAgentSessionID(
+            for: surfaceID,
+            tabs: state.workbench.surfaceTabs.tabs,
+            agents: state.agent.agents
+        )
+    }
+
+    func enforceVoiceInputContext(_ state: State) -> Effect<Action> {
+        guard let activeSessionID = state.voiceInput.activeSessionID else {
+            return .none
+        }
+
+        guard let visibleSessionID = visibleAgentSessionID(in: state),
+              visibleSessionID == activeSessionID else {
+            return .send(.stopVoiceInput)
+        }
+
+        return .none
+    }
+
+    func normalizedVoiceInputChunk(
+        _ rawText: String,
+        shouldInsertLeadingSpace: Bool
+    ) -> String {
+        let trimmed = rawText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            return ""
+        }
+        return shouldInsertLeadingSpace ? " \(trimmed)" : trimmed
+    }
+
+    nonisolated static func voiceEventDebugSummary(_ event: VoiceInputEvent) -> String {
+        switch event {
+        case let .transcriptDelta(text, isFinal):
+            return "transcriptDelta chars=\(text.count) final=\(isFinal)"
+        case .stopped:
+            return "stopped"
+        case let .failed(message):
+            return "failed chars=\(message.count)"
         }
     }
 }

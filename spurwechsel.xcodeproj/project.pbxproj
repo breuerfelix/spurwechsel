@@ -8,14 +8,14 @@
 
 /* Begin PBXBuildFile section */
 		DCDBF76F2FACFCF30062451A /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0322F9B000100AAA001 /* ComposableArchitecture */; };
-		E1A1A0412F9B000100AAA001 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0522F9B000100AAA001 /* Dependencies */; };
-		E1A1A0422F9B000100AAA001 /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0622F9B000100AAA001 /* CasePaths */; };
-		E1A1A0432F9B000100AAA001 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0522F9B000100AAA001 /* Dependencies */; };
-		E1A1A0442F9B000100AAA001 /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0622F9B000100AAA001 /* CasePaths */; };
 		E1A1A0012F9B000100AAA001 /* SwiftGitX in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0022F9B000100AAA001 /* SwiftGitX */; };
 		E1A1A0112F9B000100AAA001 /* GhosttyTerminal in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0122F9B000100AAA001 /* GhosttyTerminal */; };
 		E1A1A0212F9B000100AAA001 /* Yams in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0222F9B000100AAA001 /* Yams */; };
 		E1A1A0312F9B000100AAA001 /* ComposableArchitecture in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0322F9B000100AAA001 /* ComposableArchitecture */; };
+		E1A1A0412F9B000100AAA001 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0522F9B000100AAA001 /* Dependencies */; };
+		E1A1A0422F9B000100AAA001 /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0622F9B000100AAA001 /* CasePaths */; };
+		E1A1A0432F9B000100AAA001 /* Dependencies in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0522F9B000100AAA001 /* Dependencies */; };
+		E1A1A0442F9B000100AAA001 /* CasePaths in Frameworks */ = {isa = PBXBuildFile; productRef = E1A1A0622F9B000100AAA001 /* CasePaths */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */

@@ -82,6 +82,14 @@ struct ContentView_Previews: PreviewProvider {
                     persistUIState: { _, _ in }
                 )
                 dependencies.openCodeConfigClient = OpenCodeConfigClient.liveValue
+                dependencies.voiceInputClient = VoiceInputClient(
+                    start: { _ in
+                        AsyncStream { continuation in
+                            continuation.finish()
+                        }
+                    },
+                    stop: { }
+                )
                 dependencies.terminalRegistryClient = TerminalRegistryClient(
                     agentController: { _ in nil },
                     workspaceController: { _, _, _ in
