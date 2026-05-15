@@ -1,5 +1,6 @@
 import AppKit
 import ComposableArchitecture
+import GhosttyTerminal
 import SwiftUI
 
 struct AppWindowBridge: View {
@@ -10,6 +11,7 @@ struct AppWindowBridge: View {
     let isCommandBarPresented: Bool
     let shouldRestoreCommandBarFocus: Bool
     let shortcutBindings: [ResolvedShortcutBinding]
+    let terminalConfig: TerminalConfig
     let dispatchShortcut: (CommandID) -> Void
 
     var body: some View {
@@ -59,7 +61,14 @@ struct AppWindowBridge: View {
             return .consume
         }
 
-        return .passThrough
+        guard terminalConfig.swapCommandAndControlWhenFocused,
+              isFocusedTerminalResponder(in: event.window),
+              let swappedEvent = swappedCommandControlEvent(from: event)
+        else {
+            return .passThrough
+        }
+
+        return .replace(swappedEvent)
     }
 
     private func normalizedShortcutKey(from event: NSEvent) -> String? {
@@ -103,5 +112,55 @@ struct AppWindowBridge: View {
         return shortcutBindings.first(where: {
             $0.key == eventKey && $0.modifiers == eventModifiers
         })?.command
+    }
+
+    private func isFocusedTerminalResponder(in window: NSWindow?) -> Bool {
+        terminalResponder(from: window?.firstResponder) != nil
+    }
+
+    private func terminalResponder(from responder: NSResponder?) -> TerminalView? {
+        var current = responder
+        while let currentResponder = current {
+            if let terminalView = currentResponder as? TerminalView {
+                return terminalView
+            }
+            current = currentResponder.nextResponder
+        }
+        return nil
+    }
+
+    private func swappedCommandControlEvent(from event: NSEvent) -> NSEvent? {
+        let currentModifiers = event.modifierFlags
+        let hasCommand = currentModifiers.contains(.command)
+        let hasControl = currentModifiers.contains(.control)
+        guard hasCommand || hasControl else {
+            return nil
+        }
+
+        var swappedModifiers = currentModifiers
+        swappedModifiers.remove([.command, .control])
+        if hasCommand {
+            swappedModifiers.insert(.control)
+        }
+        if hasControl {
+            swappedModifiers.insert(.command)
+        }
+
+        guard swappedModifiers != currentModifiers else {
+            return nil
+        }
+
+        return NSEvent.keyEvent(
+            with: event.type,
+            location: event.locationInWindow,
+            modifierFlags: swappedModifiers,
+            timestamp: event.timestamp,
+            windowNumber: event.windowNumber,
+            context: nil,
+            characters: event.characters(byApplyingModifiers: swappedModifiers) ?? event.characters ?? "",
+            charactersIgnoringModifiers: event.charactersIgnoringModifiers ?? "",
+            isARepeat: event.isARepeat,
+            keyCode: event.keyCode
+        )
     }
 }

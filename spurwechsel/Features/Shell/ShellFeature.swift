@@ -8,6 +8,7 @@ struct ShellFeature: Reducer {
     struct State: Equatable {
         var layout: AppLayoutState
         var resolvedShortcuts: [ResolvedShortcutBinding]
+        var terminalConfig: TerminalConfig
         var themeSet: ThemeSet
         var configNotification: ConfigNotificationState?
         var dismissedConfigNotificationSignature: String? = nil
@@ -38,6 +39,7 @@ struct ShellFeature: Reducer {
         case setWindowChrome(WindowChromeState)
         case setCommandBarFocusRestore(Bool)
         case setResolvedShortcuts([ResolvedShortcutBinding])
+        case setTerminalConfig(TerminalConfig)
         case setThemeSet(ThemeSet)
     }
 
@@ -111,6 +113,8 @@ struct ShellFeature: Reducer {
                 state.commandBarShouldRestorePreviousFocus = shouldRestore
             case let .setResolvedShortcuts(shortcuts):
                 state.resolvedShortcuts = shortcuts
+            case let .setTerminalConfig(terminalConfig):
+                state.terminalConfig = terminalConfig
             case let .setThemeSet(themeSet):
                 state.themeSet = themeSet
             }

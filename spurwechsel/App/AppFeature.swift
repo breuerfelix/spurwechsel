@@ -79,6 +79,7 @@ struct AppFeature: Reducer {
                             do {
                                 let loadResult = try await configClient.load()
                                 send(.shell(.setResolvedShortcuts(loadResult.config.resolvedShortcuts)))
+                                send(.shell(.setTerminalConfig(loadResult.config.terminal)))
                                 send(.shell(.setThemeSet(loadResult.config.theme)))
                                 send(.shell(.updateConfigDiagnosticsNotification(
                                     configClient.diagnosticsMessage(
@@ -299,6 +300,7 @@ struct AppFeature: Reducer {
                     do {
                         let loadResult = try await configClient.load()
                         send(.shell(.setResolvedShortcuts(loadResult.config.resolvedShortcuts)))
+                        send(.shell(.setTerminalConfig(loadResult.config.terminal)))
                         send(.shell(.setThemeSet(loadResult.config.theme)))
                         send(.shell(.updateConfigDiagnosticsNotification(
                             configClient.diagnosticsMessage(

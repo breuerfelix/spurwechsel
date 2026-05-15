@@ -26,6 +26,7 @@ struct ConfigResolver {
         )
         let agentsResult = resolveAgents(fileConfig.agents)
         let shortcutsResult = resolveShortcuts(fileConfig.shortcuts)
+        let terminalResult = resolveTerminal(fileConfig.terminal)
         let themeResult = resolveTheme(fileConfig.theme)
 
         return ConfigLoadResult(
@@ -37,6 +38,7 @@ struct ConfigResolver {
                 projects: projectsResult.value,
                 agents: agentsResult.value,
                 shortcuts: shortcutsResult.value,
+                terminal: terminalResult.value,
                 theme: themeResult.value
             ),
             diagnostics: initialDiagnostics
@@ -46,6 +48,7 @@ struct ConfigResolver {
                 + projectsResult.diagnostics
                 + agentsResult.diagnostics
                 + shortcutsResult.diagnostics
+                + terminalResult.diagnostics
                 + themeResult.diagnostics
         )
     }
@@ -353,6 +356,14 @@ struct ConfigResolver {
         return CommandID.allCases.compactMap { recordsByCommand[$0] }
     }
 
+    private func resolveTerminal(_ terminal: UserTerminalConfig?) -> ConfigDomainResult<TerminalConfig> {
+        ConfigDomainResult(
+            value: TerminalConfig(
+                swapCommandAndControlWhenFocused: terminal?.swapCommandAndControlWhenFocused ?? false
+            )
+        )
+    }
+
     private func resolveTheme(_ theme: UserThemeConfig?) -> ConfigDomainResult<ThemeSet> {
         let defaultTheme = SpurwechselConfig.defaultTheme
         let lightResult = resolveThemePalette(
@@ -419,6 +430,7 @@ struct ConfigFileNormalizer {
             projects: normalizedProjects(fileConfig.projects),
             agents: normalizedAgents(fileConfig.agents),
             shortcuts: normalizedShortcuts(fileConfig.shortcuts),
+            terminal: normalizedTerminal(fileConfig.terminal),
             theme: normalizedTheme(fileConfig.theme)
         )
     }
@@ -573,6 +585,16 @@ struct ConfigFileNormalizer {
         }
 
         return CommandID.allCases.compactMap { recordsByCommand[$0] }
+    }
+
+    private func normalizedTerminal(_ terminal: UserTerminalConfig?) -> UserTerminalConfig? {
+        guard let terminal else {
+            return nil
+        }
+
+        return UserTerminalConfig(
+            swapCommandAndControlWhenFocused: terminal.swapCommandAndControlWhenFocused
+        )
     }
 
     private func normalizedTheme(_ theme: UserThemeConfig?) -> UserThemeConfig? {

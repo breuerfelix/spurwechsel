@@ -25,6 +25,7 @@ struct UserConfigFile: Codable, Equatable {
     var projects: [UserProjectRecord]?
     var agents: [UserAgentConfigRecord]?
     var shortcuts: [UserShortcutRecord]?
+    var terminal: UserTerminalConfig?
     var theme: UserThemeConfig?
 
     init(
@@ -34,6 +35,7 @@ struct UserConfigFile: Codable, Equatable {
         projects: [UserProjectRecord]? = nil,
         agents: [UserAgentConfigRecord]? = nil,
         shortcuts: [UserShortcutRecord]? = nil,
+        terminal: UserTerminalConfig? = nil,
         theme: UserThemeConfig? = nil
     ) {
         self.version = version
@@ -42,6 +44,7 @@ struct UserConfigFile: Codable, Equatable {
         self.projects = projects
         self.agents = agents
         self.shortcuts = shortcuts
+        self.terminal = terminal
         self.theme = theme
     }
 
@@ -76,6 +79,9 @@ struct UserConfigFile: Codable, Equatable {
                     modifiers: $0.modifiers.map(\.rawValue)
                 )
             },
+            terminal: UserTerminalConfig(
+                swapCommandAndControlWhenFocused: config.terminal.swapCommandAndControlWhenFocused
+            ),
             theme: UserThemeConfig(
                 light: UserThemePalette(values: config.theme.light.asHexMap),
                 dark: UserThemePalette(values: config.theme.dark.asHexMap)
@@ -89,6 +95,14 @@ struct UserCodeServerConfig: Codable, Equatable {
 
     init(port: Int? = nil) {
         self.port = port
+    }
+}
+
+struct UserTerminalConfig: Codable, Equatable {
+    var swapCommandAndControlWhenFocused: Bool?
+
+    init(swapCommandAndControlWhenFocused: Bool? = nil) {
+        self.swapCommandAndControlWhenFocused = swapCommandAndControlWhenFocused
     }
 }
 
