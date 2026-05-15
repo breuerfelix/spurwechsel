@@ -98,11 +98,20 @@ final class AppRuntime {
         terminalRegistry.controller(for: .workspace(workspaceID))
     }
 
-    func persistLayout(_ layout: AppLayoutState) {
+    func persistUIState(
+        layout: AppLayoutState,
+        projects: ProjectsState
+    ) {
         let state = UIStateFile(
             layout: UILayoutState(
                 preferredLeftSidebarWidth: layout.preferredLeftSidebarWidth.map(Double.init),
-                preferredRightSidebarWidth: layout.preferredRightSidebarWidth.map(Double.init)
+                preferredRightSidebarWidth: layout.preferredRightSidebarWidth.map(Double.init),
+                preferredPreviewWidth: layout.preferredPreviewWidth.map(Double.init),
+                themeMode: layout.themeMode.rawValue
+            ),
+            workspace: UIWorkspaceState(
+                collapsedProjectPaths: projects.collapsedProjectPaths.sorted(),
+                collapsedSectionIDs: projects.collapsedSectionIDs.sorted()
             )
         )
 

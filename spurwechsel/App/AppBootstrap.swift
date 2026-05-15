@@ -11,6 +11,13 @@ enum AppBootstrap {
             runtime.configStore.configURL
         )
         var layout = PreviewFixtures.layoutState
+        if let persistedThemeMode = persistedUIState.layout.themeMode,
+           let resolvedThemeMode = ThemeMode(rawValue: persistedThemeMode) {
+            layout.themeMode = resolvedThemeMode
+        }
+        if let previewWidth = persistedUIState.layout.preferredPreviewWidth {
+            layout.preferredPreviewWidth = CGFloat(previewWidth)
+        }
         if let leftWidth = persistedUIState.layout.preferredLeftSidebarWidth {
             layout.preferredLeftSidebarWidth = CGFloat(leftWidth)
         }
@@ -18,7 +25,11 @@ enum AppBootstrap {
             layout.preferredRightSidebarWidth = CGFloat(rightWidth)
         }
 
-        let projects = ProjectsState.fromImportedProjects([])
+        let projects = ProjectsState.fromImportedProjects(
+            [],
+            collapsedProjectPaths: Set(persistedUIState.workspace.collapsedProjectPaths),
+            collapsedSectionIDs: Set(persistedUIState.workspace.collapsedSectionIDs)
+        )
         let initialWorkspaceID = projects.selection.stableID
 
         return AppFeature.State(

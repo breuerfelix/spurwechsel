@@ -212,6 +212,47 @@ final class SpurwechselStateTests: XCTestCase {
         })
     }
 
+    func testProjectsStateRestoreCollapsedProjectsFromPersistedPathsAfterRefresh() {
+        let firstProjectID = UUID(uuidString: "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa")!
+        let refreshedProjectID = UUID(uuidString: "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb")!
+        let secondProjectID = UUID(uuidString: "cccccccc-cccc-cccc-cccc-cccccccccccc")!
+        let firstPath = "/tmp/project-one"
+
+        let firstProject = Project(
+            id: firstProjectID,
+            name: "project-one",
+            branch: "main",
+            path: firstPath
+        )
+        let secondProject = Project(
+            id: secondProjectID,
+            name: "project-two",
+            branch: "main",
+            path: "/tmp/project-two"
+        )
+        var state = ProjectsState.fromImportedProjects(
+            [firstProject, secondProject],
+            collapsedProjectPaths: [firstPath]
+        )
+
+        XCTAssertTrue(state.collapsedProjectIDs.contains(firstProjectID))
+
+        let refreshedFirstProject = Project(
+            id: refreshedProjectID,
+            name: "project-one",
+            branch: "main",
+            path: firstPath
+        )
+        state.replaceProjects(
+            [refreshedFirstProject, secondProject],
+            configuredSections: []
+        )
+
+        XCTAssertTrue(state.collapsedProjectPaths.contains(firstPath))
+        XCTAssertTrue(state.collapsedProjectIDs.contains(refreshedProjectID))
+        XCTAssertFalse(state.collapsedProjectIDs.contains(firstProjectID))
+    }
+
     func testAgentStateAddAgentSelectsNewSession() {
         var state = PreviewFixtures.agentState
 

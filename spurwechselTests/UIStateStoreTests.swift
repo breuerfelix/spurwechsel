@@ -21,8 +21,14 @@ final class UIStateStoreTests: XCTestCase {
         let store = UIStateStore(stateURL: stateURL)
         let input = UIStateFile(
             layout: UILayoutState(
+                preferredPreviewWidth: 512,
                 preferredLeftSidebarWidth: 301,
-                preferredRightSidebarWidth: 277
+                preferredRightSidebarWidth: 277,
+                themeMode: "light"
+            ),
+            workspace: UIWorkspaceState(
+                collapsedProjectPaths: ["/tmp/repo-a", "/tmp/repo-b"],
+                collapsedSectionIDs: ["tools", "other"]
             )
         )
 
@@ -38,5 +44,27 @@ final class UIStateStoreTests: XCTestCase {
         let store = UIStateStore(stateURL: stateURL)
 
         XCTAssertEqual(store.load(), UIStateFile())
+    }
+
+    func testLoadBackfillsNewFieldsForLegacyStateFile() throws {
+        let stateURL = temporaryDirectoryURL.appendingPathComponent("ui-state.json")
+        let legacyJSON = """
+        {
+          "version": 1,
+          "layout": {
+            "preferredLeftSidebarWidth": 300,
+            "preferredRightSidebarWidth": 280
+          }
+        }
+        """
+        try legacyJSON.write(to: stateURL, atomically: true, encoding: .utf8)
+        let store = UIStateStore(stateURL: stateURL)
+
+        let output = store.load()
+        XCTAssertEqual(output.layout.preferredLeftSidebarWidth, 300)
+        XCTAssertEqual(output.layout.preferredRightSidebarWidth, 280)
+        XCTAssertNil(output.layout.preferredPreviewWidth)
+        XCTAssertNil(output.layout.themeMode)
+        XCTAssertEqual(output.workspace, UIWorkspaceState())
     }
 }

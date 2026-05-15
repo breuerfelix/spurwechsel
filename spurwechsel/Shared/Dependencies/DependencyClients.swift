@@ -135,13 +135,13 @@ extension FileSystemClient: DependencyKey {
 }
 
 struct LayoutPersistenceClient {
-    var persistShellLayout: @MainActor @Sendable (_ layout: AppLayoutState) -> Void
+    var persistUIState: @MainActor @Sendable (_ layout: AppLayoutState, _ projects: ProjectsState) -> Void
 }
 
 extension LayoutPersistenceClient: DependencyKey {
     static let liveValue = LayoutPersistenceClient(
-        persistShellLayout: { _ in
-            DependencyClientError.unimplemented("LayoutPersistenceClient.persistShellLayout")
+        persistUIState: { _, _ in
+            DependencyClientError.unimplemented("LayoutPersistenceClient.persistUIState")
         }
     )
 }

@@ -176,8 +176,9 @@ struct AppFeature: Reducer {
                 return surfaceStateChangedEffects(&state)
             case .shell(.persistLayout):
                 let layout = state.shell.layout
+                let projects = state.workspace.projects
                 return .run { _ in
-                    await layoutPersistenceClient.persistShellLayout(layout)
+                    await layoutPersistenceClient.persistUIState(layout, projects)
                 }
             case .shell(.togglePreview):
                 syncWorkbenchState(
@@ -186,6 +187,8 @@ struct AppFeature: Reducer {
                 )
                 syncEditorState(&state)
                 return surfaceStateChangedEffects(&state)
+            case .shell(.toggleTheme):
+                return .send(.shell(.persistLayout))
             case let .agent(.selectSession(sessionID)):
                 if let session = state.agent.agents.selectedSession {
                     state.workspace.projects.select(session.workspaceSelection)
@@ -324,6 +327,9 @@ struct AppFeature: Reducer {
                         detailMessage: detailMessage
                     )
                 )))
+            case .workspace(.toggleProjectCollapse),
+                    .workspace(.toggleSectionCollapse):
+                return .send(.shell(.persistLayout))
             case .lifecycle(.delegate(.appLaunched)):
                 return .send(.appLaunched)
             case let .lifecycle(.delegate(.externalOpenRequested(request))):
