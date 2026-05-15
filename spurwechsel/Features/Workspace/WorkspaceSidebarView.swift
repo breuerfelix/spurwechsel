@@ -58,7 +58,7 @@ struct WorkspaceSidebarView: View {
                 .padding(.horizontal, WorkspaceSidebarDensity.contentHorizontalPadding)
                 .padding(.bottom, WorkspaceSidebarDensity.contentBottomPadding)
             }
-            .sidebarAutoHidingScrollIndicators()
+            .autoHidingOverlayScrollIndicators()
             .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
 
             HStack {
