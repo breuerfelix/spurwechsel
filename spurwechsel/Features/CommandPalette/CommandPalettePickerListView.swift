@@ -52,6 +52,7 @@ struct CommandPalettePickerListView: View {
                 ScrollView {
                     pickerResultsContent
                 }
+                .autoHidingOverlayScrollIndicators()
                 .frame(height: maxHeight)
                 .onAppear {
                     scrollToHighlightedIndex(in: proxy)

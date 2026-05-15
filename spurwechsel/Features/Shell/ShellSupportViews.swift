@@ -119,61 +119,149 @@ struct ConfigNotificationBannerView: View {
     }
 }
 
-private struct SidebarAutoHidingScrollIndicatorsModifier: ViewModifier {
+private struct AutoHidingOverlayScrollIndicatorsModifier: ViewModifier {
     func body(content: Content) -> some View {
         content.background(
-            SidebarScrollViewConfigurator()
+            AutoHidingOverlayScrollIndicatorsConfigurator()
                 .frame(width: 0, height: 0)
         )
     }
 }
 
-private struct SidebarScrollViewConfigurator: NSViewRepresentable {
-    func makeNSView(context: Context) -> NSView {
-        let view = NSView(frame: .zero)
-        view.isHidden = true
-        configureAfterLayout(for: view)
-        return view
-    }
+private struct AutoHidingOverlayScrollIndicatorsConfigurator: NSViewRepresentable {
+    final class Coordinator {
+        private weak var scrollView: NSScrollView?
+        private weak var observedWindow: NSWindow?
+        private var resizeObserver: NSObjectProtocol?
+        private var endLiveResizeObserver: NSObjectProtocol?
 
-    func updateNSView(_ nsView: NSView, context: Context) {
-        configureAfterLayout(for: nsView)
-    }
+        deinit {
+            removeWindowObservers()
+        }
 
-    private func configureAfterLayout(for view: NSView) {
-        DispatchQueue.main.async {
-            guard let scrollView = findEnclosingScrollView(from: view) else {
+        func scheduleConfigure(for view: NSView) {
+            DispatchQueue.main.async { [weak self, weak view] in
+                guard let self, let view else { return }
+                self.configure(for: view)
+            }
+        }
+
+        private func configure(for view: NSView) {
+            guard let resolvedScrollView = findEnclosingScrollView(from: view) else {
                 return
             }
+            if resolvedScrollView !== scrollView {
+                scrollView = resolvedScrollView
+            }
+            applyAutoHidingOverlayScrollerStyle(to: resolvedScrollView)
+            observeWindowIfNeeded(window: resolvedScrollView.window, view: view)
+        }
+
+        private func applyAutoHidingOverlayScrollerStyle(to scrollView: NSScrollView) {
             scrollView.scrollerStyle = .overlay
             scrollView.autohidesScrollers = true
             scrollView.hasVerticalScroller = true
             scrollView.hasHorizontalScroller = false
         }
+
+        private func observeWindowIfNeeded(window: NSWindow?, view: NSView) {
+            guard observedWindow !== window else { return }
+            removeWindowObservers()
+            observedWindow = window
+            guard let window else { return }
+
+            resizeObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didResizeNotification,
+                object: window,
+                queue: .main
+            ) { [weak self, weak view] _ in
+                guard let self, let view else { return }
+                self.scheduleConfigure(for: view)
+            }
+
+            endLiveResizeObserver = NotificationCenter.default.addObserver(
+                forName: NSWindow.didEndLiveResizeNotification,
+                object: window,
+                queue: .main
+            ) { [weak self, weak view] _ in
+                guard let self, let view else { return }
+                self.scheduleConfigure(for: view)
+            }
+        }
+
+        private func removeWindowObservers() {
+            if let resizeObserver {
+                NotificationCenter.default.removeObserver(resizeObserver)
+                self.resizeObserver = nil
+            }
+            if let endLiveResizeObserver {
+                NotificationCenter.default.removeObserver(endLiveResizeObserver)
+                self.endLiveResizeObserver = nil
+            }
+            observedWindow = nil
+        }
+
+        private func findEnclosingScrollView(from view: NSView) -> NSScrollView? {
+            if let scrollView = view.enclosingScrollView {
+                return scrollView
+            }
+
+            var current: NSView? = view.superview
+            while let node = current {
+                if let scrollView = node as? NSScrollView {
+                    return scrollView
+                }
+                if let scrollView = node.enclosingScrollView {
+                    return scrollView
+                }
+                current = node.superview
+            }
+
+            return nil
+        }
     }
 
-    private func findEnclosingScrollView(from view: NSView) -> NSScrollView? {
-        if let scrollView = view.enclosingScrollView {
-            return scrollView
+    final class TrackerView: NSView {
+        var onHierarchyChange: (() -> Void)?
+
+        override func viewDidMoveToSuperview() {
+            super.viewDidMoveToSuperview()
+            onHierarchyChange?()
         }
 
-        var current: NSView? = view.superview
-        while let node = current {
-            if let scrollView = node as? NSScrollView {
-                return scrollView
-            }
-            if let scrollView = node.enclosingScrollView {
-                return scrollView
-            }
-            current = node.superview
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            onHierarchyChange?()
         }
 
-        return nil
+        override func layout() {
+            super.layout()
+            onHierarchyChange?()
+        }
+    }
+
+    func makeCoordinator() -> Coordinator {
+        Coordinator()
+    }
+
+    func makeNSView(context: Context) -> TrackerView {
+        let view = TrackerView(frame: .zero)
+        view.isHidden = true
+        view.onHierarchyChange = { [weak coordinator = context.coordinator, weak view] in
+            guard let coordinator, let view else { return }
+            coordinator.scheduleConfigure(for: view)
+        }
+        context.coordinator.scheduleConfigure(for: view)
+        return view
+    }
+
+    func updateNSView(_ nsView: TrackerView, context: Context) {
+        context.coordinator.scheduleConfigure(for: nsView)
     }
 }
 
 extension View {
-    func sidebarAutoHidingScrollIndicators() -> some View {
-        modifier(SidebarAutoHidingScrollIndicatorsModifier())
+    func autoHidingOverlayScrollIndicators() -> some View {
+        modifier(AutoHidingOverlayScrollIndicatorsModifier())
     }
 }

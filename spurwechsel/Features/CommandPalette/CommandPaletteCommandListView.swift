@@ -51,6 +51,7 @@ struct CommandPaletteCommandListView: View {
                 ScrollView {
                     commandResultsContent
                 }
+                .autoHidingOverlayScrollIndicators()
                 .frame(height: maxHeight)
                 .onAppear {
                     scrollToHighlightedIndex(in: proxy)
