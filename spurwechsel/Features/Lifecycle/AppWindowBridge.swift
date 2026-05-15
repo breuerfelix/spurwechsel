@@ -4,7 +4,6 @@ import GhosttyTerminal
 import SwiftUI
 
 struct AppWindowBridge: View {
-    @Dependency(\.appControlClient) private var appControlClient
     @Dependency(\.windowClient) private var windowClient
 
     let topBarFrameInWindow: CGRect?
@@ -12,6 +11,7 @@ struct AppWindowBridge: View {
     let shouldRestoreCommandBarFocus: Bool
     let shortcutBindings: [ResolvedShortcutBinding]
     let terminalConfig: TerminalConfig
+    let requestTerminationFromWindowClose: () -> Bool
     let dispatchShortcut: (CommandID) -> Void
 
     var body: some View {
@@ -44,8 +44,7 @@ struct AppWindowBridge: View {
     }
 
     private func handleWindowCloseRequest() -> Bool {
-        appControlClient.requestApplicationQuit()
-        return false
+        requestTerminationFromWindowClose()
     }
 
     private func handleKeyDownEvent(

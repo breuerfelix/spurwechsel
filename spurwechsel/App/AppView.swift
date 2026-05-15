@@ -42,6 +42,9 @@ struct AppView: View {
                 shouldRestoreCommandBarFocus: shell.commandBarShouldRestorePreviousFocus,
                 shortcutBindings: shell.resolvedShortcuts,
                 terminalConfig: shell.terminalConfig,
+                requestTerminationFromWindowClose: {
+                    AppLifecycleBridge.shared.requestTerminationFromWindowClose()
+                },
                 dispatchShortcut: { command in
                     store.send(.shortcut(command))
                 }

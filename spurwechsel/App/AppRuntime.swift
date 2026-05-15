@@ -56,7 +56,9 @@ final class AppRuntime {
     }
 
     func requestApplicationQuit() {
-        NSApp.terminate(nil)
+        Self.logger.debug("Quit requested via AppControlClient.")
+        Self.logger.debug("Dispatching managed termination via AppLifecycleBridge.")
+        _ = AppLifecycleBridge.shared.requestTerminationFromWindowClose()
     }
 
     func agentTerminalController(for sessionID: UUID) -> AgentTerminalSessionController? {

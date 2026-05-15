@@ -287,12 +287,16 @@ extension VSCodeRuntimeClient: DependencyKey {
 
 struct AppLifecycleBridgeClient {
     var completeTerminationRequest: @MainActor @Sendable (_ requestID: UUID, _ shouldTerminate: Bool) -> Void
+    var requestTerminationFromWindowClose: @MainActor @Sendable () -> Bool
 }
 
 extension AppLifecycleBridgeClient: DependencyKey {
     static let liveValue = AppLifecycleBridgeClient(
         completeTerminationRequest: { _, _ in
             DependencyClientError.unimplemented("AppLifecycleBridgeClient.completeTerminationRequest")
+        },
+        requestTerminationFromWindowClose: {
+            DependencyClientError.unimplemented("AppLifecycleBridgeClient.requestTerminationFromWindowClose")
         }
     )
 }
